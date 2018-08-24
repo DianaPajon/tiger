@@ -122,3 +122,10 @@ las siguientes suit de pruebas:
 + `stack test :Parser`
 + `stack test :Escap`
 + `stack test :Interp`
+
+## TODO
+
+- [x] Esqueleto andando
+* [] Simplificación del algoritmo abusando de reader
+* [] Simplificación de otras partes del compilador
+- [] Interprete Código Intermedio
