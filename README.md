@@ -6,7 +6,7 @@ Es código proporcionado en este repo es un esqueleto básico para el desarrollo
 se trató de ser lo más prolijo posible, dejando además lugar (y libertad) al estudiante que esté dispuesto a jugar un poco
 más con Haskell y Tiger.
 
-Seguí lo más que pude las ideas que se presentan en el (libro)[https://www.cs.princeton.edu/~appel/modern/ml/] y en la clase para
+Seguí lo más que pude las ideas que se presentan en el [libro](https://www.cs.princeton.edu/~appel/modern/ml/) y en la clase para
 que puedan seguirlo de forma más sencilla y las clases les sean de utilidad.
 
 ## Metodología General
@@ -74,7 +74,20 @@ De esta forma cada vez que insertamos algo en el entorno no lo haremos como un
 efecto lateral sino que vamos a encapsular el comportamiento y permitir computar
 de forma segura dentro de un nuevo entorno expandido.
 
-TODO: terminar de explicar (m a -> m a)
+Veamos un ejemplo, dentro de la clase `Manticore` vimos un método de inserción de variables en el entorno.
+```
+  ...
+  -- | Inserta una Variable al entorno
+    insertValV :: Symbol -> ValEntry -> w a -> w a
+  ...
+```
+Método que nos permite dado un `Symbol` y un `ValEntry` ejecutar una computación `w a` dentro de un
+entorno `env` (oculto dentro de la mónada `w`) donde además está cierta variable definida.
+Es un concepto que ya deberían haberlo visto en alguna otra materia:
+
+Sea `comp :: w a` una computación, la computación `insertValV "variable" TInt comp` es semánticamente
+equivalente a pensar en *ejecutar a `comp` con un entorno `env[("variable", TInt)]`*, es decir que
+expandimos el entorno con la variable `variable`.
 
 ## Cuestiones Prácticas de Haskell/GhC/Cabal/Stack
 
@@ -82,7 +95,7 @@ El proyecto utiliza a [Stack](https://docs.haskellstack.org/en/stable/README/) q
 un [cabal](https://cabal) *mejorado*.
 
 El proyecto tiene algunas dependencias que pueden ver en el siguiente gráfico:
-![Dependencias](https://git.dcc.fceia.unr.edu.ar/Compiladores/TigerHaskell/blob/master/doc/dep.png)
+![Dependencias](doc/dep.png)
 
 Tanto las dependencias como los comandos a utilizar se manejan desde [HaskTiger.cabal].
 
@@ -97,7 +110,8 @@ indicados en las dependencias.
 
 ### ProTip:
 
-**Explorar** `HaskTiger.cabal` que es donde está definido todo lo que dije arriba.
+**Explorar** `HaskTiger.cabal** que es donde está definido todo lo que dije arriba.
+**Explorar a conciencia [mí repo](https://bitbucket.org/martinceresa/tiger-compiler)**
 
 ## Testing
 
@@ -106,6 +120,3 @@ las siguientes suit de pruebas:
 + `stack test :Parser`
 + `stack test :Escap`
 + `stack test :Interp**
-
-<!--  LocalWords:  tipado
- -->
