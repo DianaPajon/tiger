@@ -126,7 +126,7 @@ las siguientes suit de pruebas:
 ## TODO
 
 - [x] Esqueleto andando
-  * [] Simplificación del algoritmo abusando de reader
-  * [] Simplificación de otras partes del compilador
-- [] Interprete Código Intermedio
-- [] Representación de Ciertas Máquinas... Necesito gente que llegue al final del compilador.
+  * [ ] Simplificación del algoritmo abusando de reader
+  * [ ] Simplificación de otras partes del compilador
+- [ ] Interprete Código Intermedio
+- [ ] Representación de Ciertas Máquinas... Necesito gente que llegue al final del compilador.
