@@ -8,6 +8,7 @@ import           TigerErrores        as E
 import           TigerSres
 import           TigerTips
 
+-- Segunda parte imports:
 -- import           TigerTemp
 -- import           TigerTrans
 
