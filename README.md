@@ -126,6 +126,7 @@ las siguientes suit de pruebas:
 ## TODO
 
 - [x] Esqueleto andando
+  * [ ] Mejorar el TigerMain, modularizar el estado de los temporales como dos estados.
   * [ ] Simplificación del algoritmo abusando de reader
   * [ ] Simplificación de otras partes del compilador
 - [ ] Interprete Código Intermedio
