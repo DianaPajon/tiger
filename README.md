@@ -108,6 +108,8 @@ y los módulos que tiene los pueden en el archivo [HaskTiger.cabal].
 Pueden ejecutar `stack exec $SHELL` donde estarán en una *shell* con el ejecutable en *path* y con un entorno de Haskell con todos los paquetes
 indicados en las dependencias.
 
+Podes observar todos los targets de stack con `stack ide targets`.
+
 ### ProTip:
 
 **Explorar** `HaskTiger.cabal** que es donde está definido todo lo que dije arriba.
@@ -119,4 +121,4 @@ Utilizando *Stack* podemos generar diversas *testsuit* que pueden encontrar en `
 las siguientes suit de pruebas:
 + `stack test :Parser`
 + `stack test :Escap`
-+ `stack test :Interp**
++ `stack test :Interp`
