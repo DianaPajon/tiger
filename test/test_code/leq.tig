@@ -1,0 +1,12 @@
+/* Chequeamos que los operadores esten todos bien identificados */
+let
+	var a : int := 0
+	var b : int := 5
+in
+ if (a > b) then b;
+ if (a < b) then a;
+ if (a >= b) then a;
+ if (a <= b) then a;
+ if (a = b) then a;
+ if (a <> b) then a
+end ; 0

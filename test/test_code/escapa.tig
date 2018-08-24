@@ -1,0 +1,5 @@
+let
+    var a : Int := 5
+    var b : Int := c
+in 0
+end

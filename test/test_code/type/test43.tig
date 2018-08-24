@@ -1,0 +1,7 @@
+/* error: initialize with unit and causing type mismatch in addition */
+
+let
+	var a := ()
+in
+	a + 3
+end
