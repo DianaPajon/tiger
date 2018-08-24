@@ -111,7 +111,7 @@ buscarM s ((s',t,_):xs) | s == s' = Just t
 
 -- | Completar transVar.
 -- El objetivo de esta función es obtener el tipo
--- de la variable a la que se está accediendo.
+-- de la variable a la que se está **accediendo**.
 -- ** transVar :: (MemM w, Manticore w) => Var -> w (BExp, Tipo)
 transVar :: (Manticore w) => Var -> w ( () , Tipo)
 transVar (SimpleVar s)      = undefined
