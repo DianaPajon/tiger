@@ -125,9 +125,16 @@ las siguientes suit de pruebas:
 
 ## TODO
 
-- [x] Esqueleto andando
+- [ ] Tiger Haskell Esqueleto
+  * [x] Esqueleto Andando
   * [ ] Mejorar el TigerMain, modularizar el estado de los temporales como dos estados.
+  * [x] Testing
   * [ ] Simplificación del algoritmo abusando de reader
   * [ ] Simplificación de otras partes del compilador
 - [ ] Interprete Código Intermedio
 - [ ] Representación de Ciertas Máquinas... Necesito gente que llegue al final del compilador.
+- [ ] Terminar de documentar todo:
+  * [ ] Monadas
+  * [ ] Extensiones
+  * [ ] Lazy Top Sort
+  * [ ] Algoritmos a la Haskell
