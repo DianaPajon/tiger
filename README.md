@@ -11,6 +11,33 @@ Seguí lo más que pude las ideas que se presentan en el
 [libro](https://www.cs.princeton.edu/~appel/modern/ml/) y en las clases para que
 puedan seguirlo de forma más sencilla y que las clases les sean de utilidad.
 
+## Archivos
+
+El proyecto está modularizado en diferentes archivos que pueden encontrar en `src/`
+
+Archivos relacionados a etapas del compilador.
++ [TigerLexer](src/TigerLexer.hs)/ [TigerParser](src/TigerParser.hs): Analizador lexicográfico y parser, text -> `Exp`.
++ [TigerEscap.hs](src/TigerEscap.hs): Cálculo de variables escapadas.
++ [TigerSeman](src/TigerSeman.hs): Análisis Semántico, inferidor de tipos, `Exp` -> `Exp`.
++ [TigerTrans](src/TigerTrans.hs): Generador de código intermedio, `Exp` -> `Stm`.
++ [TigerCanon](src/TigerCanon.hs): Canonizador de código intermedio, `Stm` -> [`Stm`].
+
+Archivos que contienen las estructuras a manipular:
++ [TigerAbs](src/TigerAbs.hs): Contiene el `Exp`.
++ [TigerTree](src/TigerTree.hs): Contiene el código intermedio `Stm`.
+
+Archivos Auxiliares:
++ [TigerErrores](src/TigerErrores.hs):
++ [TigerFrame](src/TigerFrame.hs):
++ [TigerInterp](src/TigerInterp.hs):
++ [TigerPretty](src/TigerPretty.hs)
++ [TigerPrettyIr](src/TigerPrettyIr.hs)
++ [TigerSres](src/TigerSres.hs)
++ [TigerSymbol](src/TigerSymbol.hs)
++ [TigerTemp](src/TigerTemp.hs)
++ [TigerTip](src/TigerTip.hs)
++ [TigerTraversals](src/TigerTraversals.hs)
+
 ## Metodología General
 
 Cada algoritmo importante está separado en dos abstracciones, un *Mini edsl* y

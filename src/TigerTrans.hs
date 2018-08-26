@@ -8,7 +8,6 @@ import qualified Control.Monad.State as ST
 import           Prelude             hiding (EQ, GT, LT, error, exp, seq)
 import qualified Prelude             as P (error)
 import qualified TigerAbs            as Abs
-import           TigerEnv
 import           TigerErrores
 import           TigerFrame          as F
 import           TigerSymbol         as T
