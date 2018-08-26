@@ -11,6 +11,22 @@ Seguí lo más que pude las ideas que se presentan en el
 [libro](https://www.cs.princeton.edu/~appel/modern/ml/) y en las clases para que
 puedan seguirlo de forma más sencilla y que las clases les sean de utilidad.
 
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+**Table of Contents**
+
+- [HaskTiger](#hasktiger)
+    - [Archivos](#archivos)
+    - [Metodología General](#metodología-general)
+        - [Metodología Particular. Mónada(s)](#metodología-particular-mónadas)
+        - [Extensiones de Haskell](#extensiones-de-haskell)
+    - [Cuestiones Prácticas de Haskell/GhC/Cabal/Stack](#cuestiones-prácticas-de-haskellghccabalstack)
+        - [ProTip:](#protip)
+    - [Testing](#testing)
+    - [TODO](#todo)
+
+<!-- markdown-toc end -->
+
+
 ## Archivos
 
 El proyecto está modularizado en diferentes archivos que pueden encontrar en `src/`
@@ -27,16 +43,16 @@ Archivos que contienen las estructuras a manipular:
 + [TigerTree](src/TigerTree.hs): Contiene el código intermedio `Stm`.
 
 Archivos Auxiliares:
-+ [TigerErrores](src/TigerErrores.hs):
-+ [TigerFrame](src/TigerFrame.hs):
-+ [TigerInterp](src/TigerInterp.hs):
-+ [TigerPretty](src/TigerPretty.hs)
-+ [TigerPrettyIr](src/TigerPrettyIr.hs)
-+ [TigerSres](src/TigerSres.hs)
-+ [TigerSymbol](src/TigerSymbol.hs)
-+ [TigerTemp](src/TigerTemp.hs)
-+ [TigerTip](src/TigerTip.hs)
-+ [TigerTraversals](src/TigerTraversals.hs)
++ [TigerErrores](src/TigerErrores.hs): Contiene la clase `Daemon` para el computo de errores.
++ [TigerFrame](src/TigerFrame.hs): Abstrae el frame de la arquitectura a elegir.
++ [TigerPretty](src/TigerPretty.hs): PP de código fuente.
++ [TigerPrettyIr](src/TigerPrettyIr.hs) : PP de código intermedio.
++ [TigerSres](src/TigerSres.hs): Representación de valores/funciones en las tabla de entornos, útiles para las primeras etapas.
++ [TigerSymbol](src/TigerSymbol.hs): Encapsulamiento de la librería Text.
++ [TigerTemp](src/TigerTemp.hs): Manejo de Temporales y Labels, con la clase `TLGenerator`.
++ [TigerTip](src/TigerTip.hs): Estructura de los tipos.
++ [TigerTraversals](src/TigerTraversals.hs): Traversals para el AST (estaba aburrido)
++ [TigerInterp](src/TigerInterp.hs): Idealmente debería estar acá un interprete de código intermedio.
 
 ## Metodología General
 
