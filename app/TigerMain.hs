@@ -3,6 +3,7 @@ import qualified System.Environment as Env
 import System.Exit
 import System.Console.GetOpt
 import Control.Monad
+import Control.Monad.State
 import Data.Maybe
 import Data.Either
 
@@ -11,6 +12,7 @@ import TigerParser
 import TigerEscap
 import TigerPretty
 import TigerSeman
+import TigerTemp
 
 import Text.Parsec (runParser)
 
@@ -57,16 +59,25 @@ calculoEscapadas rawAST opts =
                fail (show err)
            ) return (calcularEEsc rawAST)
 
+templabRel :: Exp -> StGen ()
+templabRel ast = do
+  treeS <- runSeman ast
+  -- something <- canonM sometree :: StGen [Stm]
+  return ()
+
+parserStep :: Options -> String -> String -> IO Exp
+parserStep opts nm sc = either
+  (\perr -> error $ "Parser error" ++ show perr)
+  return
+  $ runParser expression () nm sc
+
 main :: IO ()
 main = do
     s:opts <- Env.getArgs
     (opts', _) <- compilerOptions opts
     sourceCode <- readFile s
-    either (\err -> error $ "Parser error..." ++ show err)
-       (\ast ->
-        calculoEscapadas ast opts' -- OJOTA: Efectos secundarios
-        >>
-       -- Imprimimos el árbol
-        when (optArbol opts') (showExp ast)
-        >>
-        print "Genial!") (runParser expression () s sourceCode)
+    rawAst <- parserStep opts' s sourceCode
+    ast <- calculoEscapadas rawAst opts'
+    when (optArbol opts') (showExp ast)
+    let _ = evalState (templabRel ast) 0
+    print "Genial!"

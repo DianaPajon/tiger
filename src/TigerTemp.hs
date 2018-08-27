@@ -1,12 +1,14 @@
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module TigerTemp where
 import           Control.Monad.State
+import           Control.Monad.Trans
 import qualified Data.Text           as T
 
-import TigerSymbol
+import           TigerSymbol
 
 type Label = Symbol
 type Temp  = Symbol
@@ -27,3 +29,12 @@ detgenLabel i = pack ("L"++show i)
 class TLGenerator w where
     newTemp :: w Temp
     newLabel :: w Label
+
+type StGen = State Int
+instance TLGenerator StGen where
+  newTemp = modify (+1) >> gets detgenTemp
+  newLabel = modify (+1) >> gets detgenLabel
+
+instance MonadTrans t => TLGenerator (t StGen) where
+  newTemp = lift newTemp
+  newLabel = lift newLabel

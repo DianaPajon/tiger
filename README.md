@@ -12,7 +12,7 @@ Seguí lo más que pude las ideas que se presentan en el
 puedan seguirlo de forma más sencilla y que las clases les sean de utilidad.
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
-**Table of Contents**
+**Tabla de Contenidos**
 
 - [HaskTiger](#hasktiger)
     - [Archivos](#archivos)
@@ -51,6 +51,8 @@ Archivos Auxiliares:
 + [TigerSymbol](src/TigerSymbol.hs): Encapsulamiento de la librería Text.
 + [TigerTemp](src/TigerTemp.hs): Manejo de Temporales y Labels, con la clase `TLGenerator`.
 + [TigerTip](src/TigerTip.hs): Estructura de los tipos.
+
+Archivos Totalmente Inestables:
 + [TigerTraversals](src/TigerTraversals.hs): Traversals para el AST (estaba aburrido)
 + [TigerInterp](src/TigerInterp.hs): Idealmente debería estar acá un interprete de código intermedio.
 

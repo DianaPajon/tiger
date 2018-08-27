@@ -66,19 +66,19 @@ variable = do
     (v' st)
 
 field :: Parser [(Symbol, Bool, Ty)]
-field = 
+field =
     commaSep (do
         n <- identifier
         colon
-        ty <- identifier 
+        ty <- identifier
         return (pack n, False, NameTy (pack ty)))
 
 field' :: Parser [(Symbol, Ty)]
-field' = 
+field' =
     commaSep (do
         n <- identifier
         colon
-        ty <- identifier 
+        ty <- identifier
         return (pack n, NameTy (pack ty)))
 
 ftype :: Parser (Maybe Symbol)
@@ -261,7 +261,7 @@ recordexp :: Parser Exp
 recordexp = do
     p <- gline
     tname <- identifier
-    fls <- braces $ commaSep1 recfld
+    fls <- braces $ commaSep recfld
     return (RecordExp fls (pack tname) p)
 
 callexp :: Parser Exp

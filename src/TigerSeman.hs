@@ -1,6 +1,3 @@
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE TupleSections #-}
-
 module TigerSeman where
 
 import           TigerAbs
@@ -9,8 +6,11 @@ import           TigerSres
 import           TigerTips
 
 -- Segunda parte imports:
--- import           TigerTemp
+import           TigerTemp
 -- import           TigerTrans
+import           Control.Monad.State
+import           Control.Monad.Except
+import           Data.Map            as M
 
 import           TigerSymbol
 
@@ -19,7 +19,13 @@ import           Control.Monad
 import           Data.List           as List
 import           Prelude             as P
 
+
 import           Debug.Trace
+
+-- Notas :
+-- [1] No deberían fallar las busquedas de variables. Recuerden que
+-- el calculo de variables escapadas debería detectar las variables
+-- no definidas.
 
 class (Daemon w, Monad w) => Manticore w where
   -- | Inserta una Variable al entorno
@@ -32,10 +38,8 @@ class (Daemon w, Monad w) => Manticore w where
     insertTipoT :: Symbol -> Tipo -> w a -> w a
   -- | Busca una función en el entorno
     getTipoFunV :: Symbol -> w FunEntry
-  -- | Busca una variable en el entorno
+  -- | Busca una variable en el entorno. Ver [1]
     getTipoValV :: Symbol -> w ValEntry
-  -- NOTA: La busquedas de valores en los entorno
-  -- no deberían fallar. Ya que se analizó en la etapa anterior.
   -- | Busca un tipo en el entorno
     getTipoT :: Symbol -> w Tipo
   -- | Funciones de Debugging!
@@ -70,9 +74,9 @@ class (Daemon w, Monad w) => Manticore w where
     tiposIguales  e (RefRecord s) = E.internal $ pack $ "No son tipos iguales... 123+4" ++ (show e ++ show s)
     tiposIguales a b = return (intiposIguales a b)
     --
-    -- | Generador de uniques.
+    -- | Generador de uniques. Etapa 2
     --
-    ugen :: w Unique
+    -- ugen :: w Unique
 
 -- | Definimos algunos helpers
 
@@ -93,7 +97,7 @@ okOp _ _ EqOp        = True
 okOp TNil TNil NeqOp = False
 okOp TUnit _ NeqOp   = False
 okOp _ _ NeqOp       = True
-  -- Función incompleta, está bien esto?
+-- Función incompleta, está bien esto?
 
 cmpZip :: (Manticore m) =>  [(Symbol, Tipo)] -> [(Symbol, Tipo, Int)] -> m Bool
 cmpZip [] [] = return True
@@ -197,34 +201,45 @@ transExp(IfExp co th (Just el) p) = error "Completar" -- Completar
 transExp(WhileExp co body p) = error "Completar" -- Completar
 transExp(ForExp nv mb lo hi bo p) = error "Completar" -- Completar
 transExp(LetExp dcs body p) = transDecs dcs (transExp body)
-transExp(BreakExp p) = error "Completar" -- Va gratis ;)
+transExp(BreakExp p) = return ((), TUnit)
 transExp(ArrayExp sn cant init p) = error "Completar" -- Completar
 
 
 -- Un ejemplo de estado que alcanzaría para realizar todas la funciones es:
--- data EstadoG = G {unique :: Int, vEnv :: [M.Map Symbol EnvEntry], tEnv :: [M.Map Symbol Tipo]}
---     deriving Show
+data EstadoG = G {vEnv :: [M.Map Symbol EnvEntry], tEnv :: [M.Map Symbol Tipo]}
+    deriving Show
 --
 -- Acompañado de un tipo de errores
--- data SEErrores = NotFound T.Text | DiffVal T.Text | Internal T.Text
---     deriving Show
+data SEErrores = NotFound Symbol | DiffVal Symbol | Internal Symbol
+    deriving Show
 --
 --  Podemos definir el estado inicial como:
--- initConf :: EstadoG
--- initConf = G {unique = 0
---             , tEnv = [M.insert (T.pack "int") (TInt RW) (M.singleton (T.pack "string") TString)]
---             , vEnv = [M.fromList
---                     [(T.pack "print", Func (1,T.pack "print",[TString], TUnit, True))
---                     ,(T.pack "flush", Func (1,T.pack "flush",[],TUnit, True))
---                     ,(T.pack "getchar",Func (1,T.pack "getchar",[],TString,True))
---                     ,(T.pack "ord",Func (1,T.pack "ord",[TString],TInt RW,True)) -- Ojota con este intro...
---                     ,(T.pack "chr",Func (1,T.pack "chr",[TInt RW],TString,True))
---                     ,(T.pack "size",Func (1,T.pack "size",[TString],TInt RW,True))
---                     ,(T.pack "substring",Func (1,T.pack "substring",[TString,TInt RW, TInt RW],TString,True))
---                     ,(T.pack "concat",Func (1,T.pack "concat",[TString,TString],TString,True))
---                     ,(T.pack "not",Func (1,T.pack "not",[TInt RW],TInt RW,True))
---                     ,(T.pack "exit",Func (1,T.pack "exit",[TInt RW],TUnit,True))
---                     ]]}
--- Utilizando alguna especia de run de la monada definida, obtenemos algo así
--- runLion :: Exp -> Either SEErrores Tipo
--- runLion e = run (transExp e) initConf
+initConf :: EstadoG
+initConf = G {
+            tEnv = [M.insert (pack "int") (TInt RW) (M.singleton (pack "string") TString)]
+            , vEnv = [M.fromList
+                    [(pack "print", Func (1,pack "print",[TString], TUnit, True))
+                    ,(pack "flush", Func (1,pack "flush",[],TUnit, True))
+                    ,(pack "getchar",Func (1,pack "getchar",[],TString,True))
+                    ,(pack "ord",Func (1,pack "ord",[TString],TInt RW,True)) -- Ojota con este intro...
+                    ,(pack "chr",Func (1,pack "chr",[TInt RW],TString,True))
+                    ,(pack "size",Func (1,pack "size",[TString],TInt RW,True))
+                    ,(pack "substring",Func (1,pack "substring",[TString,TInt RW, TInt RW],TString,True))
+                    ,(pack "concat",Func (1,pack "concat",[TString,TString],TString,True))
+                    ,(pack "not",Func (1,pack "not",[TInt RW],TInt RW,True))
+                    ,(pack "exit",Func (1,pack "exit",[TInt RW],TUnit,True))
+                    ]]}
+
+-- Utilizando alguna especie de run de la monada definida, obtenemos algo así
+type Monada = StateT EstadoG (ExceptT SEErrores StGen)
+
+instance Daemon Monada where
+  -- TODO: Parte del estudiante
+instance Manticore Monada where
+  -- TODO: Parte del estudiante
+
+runMonada :: Monada ((), Tipo)-> StGen (Either SEErrores ((), Tipo))
+runMonada = runExceptT . flip evalStateT initConf
+
+runSeman :: Exp -> StGen (Either SEErrores ((), Tipo))
+runSeman = runMonada . transExp

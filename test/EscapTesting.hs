@@ -19,7 +19,7 @@ main =
   putStrLn "\n======= Test FIN ======="
 
 tester :: SourceName -> Either Errores Exp
-tester s = either (fail "Testing Escapes: Parser error")
+tester s = either (fail $ "Testing Escapes: Parser error")
                 calcularEEsc
          $ runParser expression () s s
 
