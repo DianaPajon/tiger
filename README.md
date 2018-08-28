@@ -32,11 +32,14 @@ puedan seguirlo de forma más sencilla y que las clases les sean de utilidad.
 El proyecto está modularizado en diferentes archivos que pueden encontrar en `src/`
 
 Archivos relacionados a etapas del compilador.
-+ [TigerLexer](src/TigerLexer.hs)/ [TigerParser](src/TigerParser.hs): Analizador lexicográfico y parser, text -> `Exp`.
-+ [TigerEscap.hs](src/TigerEscap.hs): Cálculo de variables escapadas.
-+ [TigerSeman](src/TigerSeman.hs): Análisis Semántico, inferidor de tipos, `Exp` -> `Exp`.
-+ [TigerTrans](src/TigerTrans.hs): Generador de código intermedio, `Exp` -> `Stm`.
-+ [TigerCanon](src/TigerCanon.hs): Canonizador de código intermedio, `Stm` -> [`Stm`].
++ [TigerLexer](src/TigerLexer.hs)/ [TigerParser](src/TigerParser.hs): Analizador lexicográfico y parser (**gratis**), `text -> Exp`.
++ [TigerEscap.hs](src/TigerEscap.hs): Cálculo de variables escapadas(**gratis**), `Exp -> Exp`.
++ [TigerSeman](src/TigerSeman.hs): Análisis Semántico, inferidor de tipos, `Exp -> Exp`.
++ [TigerTrans](src/TigerTrans.hs): Generador de código intermedio, `Exp -> Stm`.
++ [TigerCanon](src/TigerCanon.hs): Canonizador de código intermedio(**gratis**), `Stm -> [Stm]`.
+
+Nota: Faltan archivos relacionados a las ultimas etapas, o a la ultima etapa. Ya son grandes
+deberían poder manejarse solitos.
 
 Archivos que contienen las estructuras a manipular:
 + [TigerAbs](src/TigerAbs.hs): Contiene el `Exp`.
@@ -55,6 +58,44 @@ Archivos Auxiliares:
 Archivos Totalmente Inestables:
 + [TigerTraversals](src/TigerTraversals.hs): Traversals para el AST (estaba aburrido)
 + [TigerInterp](src/TigerInterp.hs): Idealmente debería estar acá un interprete de código intermedio.
+
+[01;34m.[00m
+├── [01;34mapp[00m
+│   └── TigerMain.hs
+├── [01;34mdoc[00m
+│   └── [01;35mdep.png[00m
+├── HaskTiger.cabal
+├── LICENSE
+├── README.md
+├── runtime.c
+├── Setup.hs
+├── [01;34msrc[00m
+│   ├── TigerAbs.hs
+│   ├── TigerCanon.hs
+│   ├── TigerErrores.hs
+│   ├── TigerEscap.hs
+│   ├── TigerFrame.hs
+│   ├── TigerInterp.hs
+│   ├── TigerLexer.hs
+│   ├── TigerParser.hs
+│   ├── TigerPretty.hs
+│   ├── TigerPrettyIr.hs
+│   ├── TigerSeman.hs
+│   ├── TigerSres.hs
+│   ├── TigerSymbol.hs
+│   ├── TigerTemp.hs
+│   ├── TigerTips.hs
+│   ├── TigerTrans.hs
+│   ├── TigerTraversals.hs
+│   └── TigerTree.hs
+├── stack.yaml
+├── [01;34mtest[00m
+│   ├── EscapTesting.hs
+│   ├── Interp.hs
+│   ├── Parser.hs
+│   ├── Spec.hs
+│   ├── [01;34mtest_code[00m
+│   └── Tools.hs
 
 ## Metodología General
 
@@ -213,6 +254,8 @@ Utilizando *Stack* podemos generar diversas *testsuit* que pueden encontrar en
   * [ ] Simplificación del algoritmo abusando de reader
   * [ ] Simplificación de otras partes del compilador
 - [ ] Interprete Código Intermedio
+  * [x] Parte Fácil ya está.
+  * [ ] Parte difícil, llamada a de funciones.
 - [ ] Representación de Ciertas Máquinas. Necesito gente que llegue al final
       del compilador.
 - [ ] Terminar de documentar todo:
