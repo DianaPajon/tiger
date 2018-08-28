@@ -246,6 +246,16 @@ Utilizando *Stack* podemos generar diversas *testsuit* que pueden encontrar en
 + `stack test :Escap`
 + `stack test :Interp`
 
+Hay un archivo [Tools](test/Tools.hs) donde hay algunas funciones que me fueron
+útiles al momento de programar cada una de las etapas de testing. En el compilador
+lo mejor es ir testeando cada código que se va programando y de la manera
+más extensa posible (**es responsabilidad de ustedes**). Pueden construirse 
+caso de pruebas chicos o a mano dentro de los archivos, o simplemente pueden
+leerlos de forma externa y hacerlos pasar por las diferentes etapas del compilador.
+
+Además dentro de *Tools* tienen unas funciones que les permitirán correr todos los
+archivos de un directorio.
+
 ## TODO
 
 - [ ] Tiger Haskell Esqueleto
@@ -253,6 +263,7 @@ Utilizando *Stack* podemos generar diversas *testsuit* que pueden encontrar en
   * [ ] Mejorar el TigerMain, modularizar el estado de los temporales como dos
         estados.
   * [x] Testing
+  * [ ] QQ para simplificar el testing?
   * [ ] Simplificación del algoritmo abusando de reader
   * [ ] Simplificación de otras partes del compilador
 - [ ] Interprete Código Intermedio
