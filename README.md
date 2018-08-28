@@ -59,17 +59,19 @@ Archivos Totalmente Inestables:
 + [TigerTraversals](src/TigerTraversals.hs): Traversals para el AST (estaba aburrido)
 + [TigerInterp](src/TigerInterp.hs): Idealmente debería estar acá un interprete de código intermedio.
 
-[01;34m.[00m
-├── [01;34mapp[00m
+```bash
+.
+├── app
 │   └── TigerMain.hs
-├── [01;34mdoc[00m
-│   └── [01;35mdep.png[00m
+├── doc
+│   ├── dep.png
+│   └── tree.md
 ├── HaskTiger.cabal
 ├── LICENSE
 ├── README.md
 ├── runtime.c
 ├── Setup.hs
-├── [01;34msrc[00m
+├── src
 │   ├── TigerAbs.hs
 │   ├── TigerCanon.hs
 │   ├── TigerErrores.hs
@@ -89,14 +91,14 @@ Archivos Totalmente Inestables:
 │   ├── TigerTraversals.hs
 │   └── TigerTree.hs
 ├── stack.yaml
-├── [01;34mtest[00m
-│   ├── EscapTesting.hs
-│   ├── Interp.hs
-│   ├── Parser.hs
-│   ├── Spec.hs
-│   ├── [01;34mtest_code[00m
-│   └── Tools.hs
-
+└── test
+    ├── EscapTesting.hs
+    ├── Interp.hs
+    ├── Parser.hs
+    ├── Spec.hs
+    ├── test_code
+    └── Tools.hs
+```
 ## Metodología General
 
 Cada algoritmo importante está separado en dos abstracciones, un *Mini edsl* y

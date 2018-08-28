@@ -1,14 +1,15 @@
-[01;34m.[00m
-├── [01;34mapp[00m
+.
+├── app
 │   └── TigerMain.hs
-├── [01;34mdoc[00m
-│   └── [01;35mdep.png[00m
+├── doc
+│   ├── dep.png
+│   └── tree.md
 ├── HaskTiger.cabal
 ├── LICENSE
 ├── README.md
 ├── runtime.c
 ├── Setup.hs
-├── [01;34msrc[00m
+├── src
 │   ├── TigerAbs.hs
 │   ├── TigerCanon.hs
 │   ├── TigerErrores.hs
@@ -28,13 +29,12 @@
 │   ├── TigerTraversals.hs
 │   └── TigerTree.hs
 ├── stack.yaml
-├── [01;34mtest[00m
-│   ├── EscapTesting.hs
-│   ├── Interp.hs
-│   ├── Parser.hs
-│   ├── Spec.hs
-│   ├── [01;34mtest_code[00m
-│   └── Tools.hs
-└── tree.md
+└── test
+    ├── EscapTesting.hs
+    ├── Interp.hs
+    ├── Parser.hs
+    ├── Spec.hs
+    ├── test_code
+    └── Tools.hs
 
 5 directories, 32 files
