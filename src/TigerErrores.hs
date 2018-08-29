@@ -2,7 +2,7 @@ module TigerErrores where
 
 import           TigerSymbol
 
-class Daemon w where
+class Demon w where
     derror :: Symbol -> w a
     adder :: w a -> Symbol -> w a
     -- adder w s = handle w (derror . append s)

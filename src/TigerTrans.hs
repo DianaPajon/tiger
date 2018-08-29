@@ -53,7 +53,7 @@ getParent (_:xs) = xs
 outermost :: Level
 outermost = [(newFrame (pack "_undermain") [],-1) ]
 
-class (Monad w, TLGenerator w, Daemon w) => MemM w where
+class (Monad w, TLGenerator w, Demon w) => MemM w where
     -- | Level management
     getActualLevel :: w Int
     upLvl :: w ()
@@ -156,7 +156,7 @@ unNx (Cx cf) = do
         return $ seq [cf(t,t),Label t]
 
 -- | Des-empaquetador de condiciones
-unCx :: (Monad w,TLGenerator w, Daemon w) => BExp -> w ((Label, Label) -> Stm)
+unCx :: (Monad w,TLGenerator w, Demon w) => BExp -> w ((Label, Label) -> Stm)
 unCx (Nx s)         = internal $ pack "unCx(Nx...)"
 unCx (Cx cf)        = return cf
 -- Pequeña optimización boluda

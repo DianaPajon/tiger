@@ -46,7 +46,12 @@ library
                        , cond
                        , transformers
   default-language:    Haskell2010
-  default-extensions: FlexibleInstances, TypeFamilies, GADTs, TupleSections
+  default-extensions: FlexibleInstances
+                    , TypeFamilies
+                    , GADTs
+                    , TupleSections
+                    , LambdaCase
+                    , PatternSynonyms
 
 executable HaskTiger
   hs-source-dirs:      app

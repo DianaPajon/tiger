@@ -29,7 +29,7 @@ import           Debug.Trace
   -- trace :: String -> a -> a
 
 
-class (Daemon m, Monad m) => Escapator m where
+class (Demon m, Monad m) => Escapator m where
     -- Depth Operators
     depth :: m Depth
     -- | Devuelve la profundidad actual.
@@ -198,7 +198,7 @@ data SEstado = Step { lvlP :: Int, envP :: [Env]}
 
 type Mini = ST.StateT Estado (Either Errores)
 
-instance Daemon Mini where
+instance Demon Mini where
   derror = throwError . Interno
   adder w s = catchError w (throwError . flip eappend s)
 
@@ -234,7 +234,7 @@ calcularEEsc e = ST.evalStateT (travExp e) initSt
 
 type Stepper = ST.StateT SEstado (Either Errores)
 
-instance Daemon Stepper where
+instance Demon Stepper where
   derror = throwError . Interno
   adder w s = catchError w (throwError . flip eappend s)
 

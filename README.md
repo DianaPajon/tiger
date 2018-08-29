@@ -260,7 +260,8 @@ archivos de un directorio.
 
 - [ ] Tiger Haskell Esqueleto
   * [x] Esqueleto Andando
-  * [ ] Mejorar el TigerMain, modularizar el estado de los temporales como dos
+  * [ ] Mejorar errores de los tipos.
+  * [x] Mejorar el TigerMain, modularizar el estado de los temporales como dos
         estados.
   * [x] Testing
   * [ ] QQ para simplificar el testing?

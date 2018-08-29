@@ -104,9 +104,7 @@ fundec = do
     return (pack $ name, params, m, e, p)
 
 functiondec :: Parser Dec
-functiondec = do
-        fs <- many1 fundec
-        return (FunctionDec fs)
+functiondec =  FunctionDec <$> many1 fundec
 
 vardec :: Parser Dec
 vardec = do
@@ -142,9 +140,7 @@ tydec = do
         return (pack name, t, p)
 
 tydecs :: Parser Dec
-tydecs = do
-    dcs <- many1 tydec
-    return (TypeDec dcs)
+tydecs =  TypeDec <$> many1 tydec
 
 declarations :: Parser Dec
 declarations =  functiondec
