@@ -26,7 +26,6 @@ puedan seguirlo de forma más sencilla y que las clases les sean de utilidad.
 
 <!-- markdown-toc end -->
 
-
 ## Archivos
 
 El proyecto está modularizado en diferentes archivos que pueden encontrar en `src/`
@@ -38,7 +37,7 @@ Archivos relacionados a etapas del compilador.
 + [TigerTrans](src/TigerTrans.hs): Generador de código intermedio, `Exp -> Stm`.
 + [TigerCanon](src/TigerCanon.hs): Canonizador de código intermedio(**gratis**), `Stm -> [Stm]`.
 
-Nota: Faltan archivos relacionados a las ultimas etapas, o a la ultima etapa. Ya son grandes
+Nota: Faltan archivos relacionados a las *últimas etapas*, o a la ultima etapa. Ya son grandes
 deberían poder manejarse solitos.
 
 Archivos que contienen las estructuras a manipular:
@@ -260,20 +259,22 @@ archivos de un directorio.
 
 - [ ] Tiger Haskell Esqueleto
   * [x] Esqueleto Andando
-  * [ ] Mejorar errores de los tipos.
+  * [x] Mejorar errores de los tipos.
   * [x] Mejorar el TigerMain, modularizar el estado de los temporales como dos
         estados.
   * [x] Testing
-  * [ ] QQ para simplificar el testing?
-  * [ ] Simplificación del algoritmo abusando de reader
-  * [ ] Simplificación de otras partes del compilador
+  * [ ] [QQ](https://wiki.haskell.org/Quasiquotation) para simplificar el testing
+  * [ ] Simplificación del algoritmo abusando de reader (No sé bien que sería esto)
+  * [ ] Simplificación de otras partes del compilador (Pensar mejor cómo hacer bien las cosas)
 - [ ] Interprete Código Intermedio
-  * [x] Parte Fácil ya está.
-  * [ ] Parte difícil, llamada a de funciones.
+  * [x] Parte Fácil.
+  * [ ] Parte difícil **llamada a de funciones**.
 - [ ] Representación de Ciertas Máquinas. Necesito gente que llegue al final
       del compilador.
+  * [ ] Simuladores de arquitecturas.
+  * [ ] Debugging para esto.
 - [ ] Terminar de documentar todo:
-  * [ ] Monadas
+  * [x] Monadas
   * [x] Extensiones
   * [ ] Lazy Top Sort
   * [x] Algoritmos a la Haskell
