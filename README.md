@@ -234,7 +234,7 @@ Podes observar todos los targets de stack con `stack ide targets`.
 **Explorar** `HaskTiger.cabal** que es donde está definido todo lo que dije
 arriba.
 
-**Explorar a conciencia [mí
+**Explorar a conciencia [mi
 repo](https://bitbucket.org/martinceresa/tiger-compiler)**
 
 ## Testing

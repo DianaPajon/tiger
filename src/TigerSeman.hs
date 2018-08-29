@@ -13,7 +13,7 @@ import           TigerTemp
 -- Monads
 import qualified Control.Conditional  as C
 import           Control.Monad
-import           Control.Monad.Except
+import           Control.Monad.Trans.Except
 import           Control.Monad.State
 
 -- Data
@@ -225,7 +225,8 @@ transExp(RecordExp flds rt p) =
         _ <- flip addpos p $ cmpZip ( (\(s,(c,t)) -> (s,t)) <$> ordered) fldsTy -- Demon corta la ejecución.
         return ((), trec) -- Si todo fue bien devolvemos trec.
     _ -> flip addpos p $ derror (pack "Error de tipos.")
-transExp(SeqExp es p) = last <$> mapM transExp es
+transExp(SeqExp es p) = fmap last (mapM transExp es)
+  -- last <$> mapM transExp es
 -- ^ Notar que esto queda así porque no nos interesan los
 -- units intermedios. Eventualmente vamos a coleccionar los códigos intermedios y se verá algo similar a:
 -- do
@@ -266,20 +267,18 @@ transExp(ArrayExp sn cant init p) = error "Completar" -- Completar
 
 
 -- Un ejemplo de estado que alcanzaría para realizar todas la funciones es:
-data EstadoG = G {vEnv :: [M.Map Symbol EnvEntry], tEnv :: [M.Map Symbol Tipo]}
+data Estado = Est {vEnv :: M.Map Symbol EnvEntry, tEnv :: M.Map Symbol Tipo}
     deriving Show
+-- data EstadoG = G {vEnv :: [M.Map Symbol EnvEntry], tEnv :: [M.Map Symbol Tipo]}
+--     deriving Show
 --
--- Acompañado de un tipo de errores
-data SEErrores = NotFound Symbol | DiffVal Symbol | Internal Symbol
-    deriving Show
---
---  Estado Inicial con los entornos
--- int y string como tipos básicos.
--- todas las funciones del *runtime* disponibles.
-initConf :: EstadoG
-initConf = G {
-            tEnv = [M.insert (pack "int") (TInt RW) (M.singleton (pack "string") TString)]
-            , vEnv = [M.fromList
+-- Estado Inicial con los entornos
+-- * int y string como tipos básicos. -> tEnv
+-- * todas las funciones del *runtime* disponibles. -> vEnv
+initConf :: Estado
+initConf = Est
+           { tEnv = M.insert (pack "int") (TInt RW) (M.singleton (pack "string") TString)
+           , vEnv = M.fromList
                     [(pack "print", Func (1,pack "print",[TString], TUnit, True))
                     ,(pack "flush", Func (1,pack "flush",[],TUnit, True))
                     ,(pack "getchar",Func (1,pack "getchar",[],TString,True))
@@ -290,18 +289,33 @@ initConf = G {
                     ,(pack "concat",Func (1,pack "concat",[TString,TString],TString,True))
                     ,(pack "not",Func (1,pack "not",[TInt RW],TInt RW,True))
                     ,(pack "exit",Func (1,pack "exit",[TInt RW],TUnit,True))
-                    ]]}
+                    ]
+           }
 
 -- Utilizando alguna especie de run de la monada definida, obtenemos algo así
-type Monada = StateT EstadoG (ExceptT SEErrores StGen)
+type Monada = StateT Estado (ExceptT Symbol StGen)
 
 instance Demon Monada where
+  -- | Levantamos la operación de 'throwE' de la mónada de excepciones.
+  derror =  lift . throwE
   -- TODO: Parte del estudiante
 instance Manticore Monada where
+  -- | A modo de ejemplo esta es una opción de ejemplo de 'insertValV :: Symbol -> ValEntry -> w a -> w'
+    insertValV sym ventry m = do
+      -- | Guardamos el estado actual
+      oldEst <- get
+      -- | Insertamos la variable al entorno (sobrescribiéndolo)
+      put (oldEst{ vEnv = M.insert sym (Var ventry) (vEnv oldEst) })
+      -- | ejecutamos la computación que tomamos como argumentos una vez que expandimos el entorno
+      a <- m
+      -- | Volvemos a poner el entorno viejo
+      put oldEst
+      -- | retornamos el valor que resultó de ejecutar la monada en el entorno expandido.
+      return a
   -- TODO: Parte del estudiante
 
-runMonada :: Monada ((), Tipo)-> StGen (Either SEErrores ((), Tipo))
+runMonada :: Monada ((), Tipo)-> StGen (Either Symbol ((), Tipo))
 runMonada = runExceptT . flip evalStateT initConf
 
-runSeman :: Exp -> StGen (Either SEErrores ((), Tipo))
+runSeman :: Exp -> StGen (Either Symbol ((), Tipo))
 runSeman = runMonada . transExp
