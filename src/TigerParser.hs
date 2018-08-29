@@ -6,8 +6,6 @@ import Text.Parsec.String (Parser)
 import qualified Text.Parsec.Token as Tok
 import qualified Text.Parsec.Expr as Ex
 
-import Data.Text hiding (map)
-
 import TigerAbs
 import TigerLexer
 import TigerSymbol
@@ -310,6 +308,28 @@ parseexp :: Parser Exp
 parseexp = do
     p <- gline
     try $ Ex.buildExpressionParser (table p) expression'
+
+parseFromStr :: Monad m
+             => (String, Int, Int)
+             -> String -> m Exp
+parseFromStr (file, line, col) s =
+  case runParser parser () "" s of
+    Left err -> fail $ show err
+    Right e -> return e
+  where
+    parser = do pos <- getPosition
+                setPosition $
+                  (flip setSourceName) file $
+                  (flip setSourceLine) line $
+                  (flip setSourceColumn) col $
+                  pos
+                spaces
+                e <- expression
+                eof
+                return e
+
+parse :: String -> Either ParseError Exp
+parse p = runParser expression () p p
 
 parseFromFile :: FilePath -> IO (Either ParseError Exp)
 parseFromFile p = runParser expression () p <$> readFile p

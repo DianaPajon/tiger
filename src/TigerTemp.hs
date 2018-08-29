@@ -1,12 +1,6 @@
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TypeFamilies         #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-
 module TigerTemp where
+
 import           Control.Monad.State
-import           Control.Monad.Trans
-import qualified Data.Text           as T
 
 import           TigerSymbol
 

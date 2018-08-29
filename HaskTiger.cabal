@@ -36,6 +36,7 @@ library
         , TigerCanon
         -- Experimental
         , TigerInterp
+        , TigerQQ
       -- Tercer entrega. So vo.
   build-depends:       base
                        , containers
@@ -45,6 +46,9 @@ library
                        , pretty
                        , cond
                        , transformers
+                       -- QuasiQuoting things
+                       , syb
+                       , template-haskell
   default-language:    Haskell2010
   default-extensions: FlexibleInstances
                     , TypeFamilies
@@ -52,6 +56,8 @@ library
                     , TupleSections
                     , LambdaCase
                     , PatternSynonyms
+                    , DeriveDataTypeable
+                    , QuasiQuotes
 
 executable HaskTiger
   hs-source-dirs:      app
@@ -105,6 +111,7 @@ test-suite Escap
   other-modules: Tools
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
+  default-extensions: QuasiQuotes
 
 test-suite Interp
   type:                exitcode-stdio-1.0

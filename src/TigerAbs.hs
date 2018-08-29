@@ -2,10 +2,14 @@ module TigerAbs where
 
 import           TigerSymbol
 
+-- | Esto lo introducimos para derivar Typeable y Data que nos sirve
+-- más adelante en el modulo [TigerQQ](TigerQQ.hs).
+import           Data.Generics
+
 -- | Pos representa la posición, simple de una linea y columna, o bien un rango
 -- de posiciones
 data Pos = Simple {line::Int, col :: Int} | Range Pos Pos
-    deriving Show
+    deriving (Show, Typeable, Data)
 
 posToLabel :: Pos -> String
 posToLabel (Simple l r) = show l ++ '.': show r
@@ -27,7 +31,7 @@ data Var where
     -- la construcción de: SubscriptVar (SimpleVar "a") (OpExp (IntExp 3) PlusOp
     -- (IntExp 4))
     SubscriptVar :: Var -> Exp -> Var
-    deriving Show
+    deriving (Show, Typeable, Data)
 
 -- | Tipo que representa las expresiones de tiger! Todos los constructores
 -- llevan la posición en la que se encuentra el texto en el código fuente que
@@ -78,7 +82,7 @@ data Exp where
     -- "intArray" (OpExp (IntExp 3 Pos) PlusOp (IntExp 4 Pos)) (OpExp (IntExp 2
     -- Pos) TimesOp (IntExp 2 Pos)) Pos
     ArrayExp :: Symbol -> Exp -> Exp -> Pos -> Exp
-    deriving Show
+    deriving (Show , Typeable , Data)
 
 -- | Declaraciones!
 data Dec where
@@ -105,12 +109,10 @@ data Dec where
     -- | Declaración de tipos. Al igual que las funciones viene un paquete
     -- de tipos definidos en forma contigua y por ende mutuamente recursivos.
     TypeDec :: [(Symbol, Ty, Pos)] -> Dec
-    deriving Show
+    deriving (Show, Typeable, Data)
 
 data Ty = NameTy Symbol | RecordTy [(Symbol, Ty)] | ArrayTy Symbol
-    deriving Show
+    deriving (Show, Typeable, Data)
 
 data Oper = PlusOp | MinusOp | TimesOp | DivideOp | EqOp | NeqOp | LtOp | LeOp | GtOp | GeOp
-    deriving Show
-
--- type Field = 
+    deriving (Show, Typeable, Data)
