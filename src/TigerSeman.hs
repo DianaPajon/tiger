@@ -3,25 +3,30 @@ module TigerSeman where
 import           TigerAbs
 import           TigerErrores         as E
 import           TigerSres
+import           TigerSymbol
 import           TigerTips
 
 -- Segunda parte imports:
 import           TigerTemp
 -- import           TigerTrans
+
+-- Monads
+import qualified Control.Conditional  as C
+import           Control.Monad
 import           Control.Monad.Except
 import           Control.Monad.State
-import           Data.Map             as M
 
-import           TigerSymbol
-
-import qualified          Control.Conditional  as C
-import           Control.Monad
+-- Data
 import           Data.List            as List
-import Data.Ord as Ord
+import           Data.Map             as M
+import           Data.Ord             as Ord
+
+-- Le doy nombre al Preludio.
 import           Prelude              as P
 
-
-import           Debug.Trace
+-- Debugging. 'trace :: String -> a -> a'
+-- imprime en pantalla la string cuando se ejecuta.
+import           Debug.Trace          (trace)
 
 -- * Análisis Semántico, aka Inferidor de Tipos
 
