@@ -193,7 +193,7 @@ transExp (OpExp el' oper er' p) = do -- Esta va /gratis/
                   else addpos (derror (pack "Error de Tipos. Tipos no comparables")) p
           NeqOp ->if tiposComparables el er EqOp then oOps el er
                   else addpos (derror (pack "Error de Tipos. Tipos no comparables")) p
-          -- Los unifico en esta etapa porque solo chequeamos los tipos, en la proxima
+          -- Los unifico en esta etapa porque solo chequeamos los tipos, en la próxima
           -- tendrán que hacer algo más interesante.
           PlusOp -> oOps el er
           MinusOp -> oOps el er
@@ -203,7 +203,8 @@ transExp (OpExp el' oper er' p) = do -- Esta va /gratis/
           LeOp -> oOps el er
           GtOp -> oOps el er
           GeOp -> oOps el er
-          where oOps l r = if equivTipo l r
+          where oOps l r = if equivTipo l r -- Chequeamos que son el mismo tipo
+                              && equivTipo l (TInt RO) -- y que además es Entero. [Equiv Tipo es una rel de equiv]
                            then return ((), TInt RO)
                            else addpos (derror (pack "Error en el chequeo de una comparación.")) p
 -- | Recordemos que 'RecordExp :: [(Symbol, Exp)] -> Symbol -> Pos -> Exp'
@@ -287,7 +288,7 @@ initConf = Est
                     ,(pack "size",Func (1,pack "size",[TString],TInt RW,True))
                     ,(pack "substring",Func (1,pack "substring",[TString,TInt RW, TInt RW],TString,True))
                     ,(pack "concat",Func (1,pack "concat",[TString,TString],TString,True))
-                    ,(pack "not",Func (1,pack "not",[TInt RW],TInt RW,True))
+                    ,(pack "not",Func (1,pack "not",[TBool],TBool,True))
                     ,(pack "exit",Func (1,pack "exit",[TInt RW],TUnit,True))
                     ]
            }
