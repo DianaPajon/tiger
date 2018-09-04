@@ -193,10 +193,16 @@ data Estado = S { lvl :: Int, env :: Env}
 
 -- Este estado va a llevar el nivel y una lista de entornos, que son todos
 -- los entorno intermedios...
-data SEstado = Step { lvlP :: Int, envP :: [Env]}
+data SEstado = Step { lvlP :: Int, envP :: Env, msgP :: [String]}
     deriving Show
 
 type Mini = ST.StateT Estado (Either Errores)
+
+addMsg :: SEstado -> String -> SEstado
+addMsg e msg = e{msgP = msg : msgP e}
+
+addMsgM :: String -> Stepper ()
+addMsgM str = ST.modify (`addMsg` str)
 
 instance Demon Mini where
   derror = throwError . Interno
@@ -246,31 +252,33 @@ instance Escapator Stepper where
     old <- get
     put (old{lvlP = lvlP old + 1})
     m' <- m
-    put old
+    -- Mantenemos los mensajes que ya reportamos...
+    msg <- ST.gets msgP
+    put old{msgP = msg}
     return m'
   -- Las operaciones que sí modifican el entorno son [update] e [insert]
   update name esc = do
+    addMsgM ("Update de la variable " ++ unpack name)
     est <- get
-    (lvl, _) <- maybe (notfound name) return (M.lookup name (head $ envP est))
-    -- Agarramos la cabeza del entorno y la metemos en la lista.
-    ST.modify (\(Step l (e:env)) -> Step l ((M.insert name (lvl, esc) e) : e : env))
-  -- Buscamos en el head, en el entorno actual.
-  lookup name = get >>= return . M.lookup name . head . envP
+    (lvl, _) <- maybe (notfound name) return (M.lookup name (envP est))
+    ST.modify (\(Step l env msg) -> Step  l (M.insert name (lvl, esc) env) msg)
+  lookup name = get >>= return . M.lookup name . envP
   insert name esc m = do
+    addMsgM ("Agregamos la variable " ++ unpack name)
     old <- get
-    put old{envP = (M.insert name (lvlP old, esc) (head $ envP old)) : (envP old) }
+    put old{envP = M.insert name (lvlP old, esc) (envP old)}
     m' <- m
-  -- Al igual que en update, pusheamos en la lista.
-    (Step _ env) <- get
-    put (old{envP = (head $ envP old) : env})
+    -- Mantenemos los mensajes que ya reportamos...
+    msg <- ST.gets msgP
+    put old{msgP = msg}
     return m'
   printEnv = get >>=  \env -> traceM $ "PrintEnv " ++ (show env)
 
 initStepper :: SEstado
-initStepper = Step 1 [M.empty]
+initStepper = Step 1 M.empty []
 
 -- Ahora vamos a tener una función donde además
 -- obtendremos toda la progresiones de los diferentes entorno!
 
-calcularEscStepper :: Exp -> Either Errores (Exp, [Env])
-calcularEscStepper exp = second envP <$> ST.runStateT (travExp exp) initStepper
+calcularEscStepper :: Exp -> Either Errores (Exp, (Env, [String]))
+calcularEscStepper exp = second (\(Step _ e ms) -> (e, reverse ms)) <$> ST.runStateT (travExp exp) initStepper
