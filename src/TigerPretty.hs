@@ -3,7 +3,6 @@ module TigerPretty where
 import           Prelude          hiding ((<>))
 import           TigerAbs
 
--- import           Data.Text        (unpack)
 import           Text.PrettyPrint
 import           TigerSymbol
 
