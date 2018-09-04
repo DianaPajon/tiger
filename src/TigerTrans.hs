@@ -24,6 +24,7 @@ import           Debug.Trace
 
 type TransFrag = Frag -- Reexport Fragtype
 
+-- Empaquetadores de expresiones
 data BExp = Ex Exp | Nx Stm | Cx ((Label, Label) -> Stm)
 
 instance Show BExp where
@@ -31,28 +32,41 @@ instance Show BExp where
     show (Nx e)  = "Nx " ++ show e
     show (Cx _ ) = "Cx "
 
-type Level = [(Frame, Int)]
+-- Los niveles son un stack de (Frame, Int)
+-- Recordar que Frame es una representación del Marco Virtual.
+data LevelI = MkLI {getFrame' :: Frame, getNlvl' :: Int}
+  deriving Show
 
+type Level = [LevelI]
+
+-- Helpers de niveles.
 getFrame :: Level -> Frame
-getFrame ((f,_):_) = f
+getFrame = getFrame' . head
 
 getNlvl :: Level -> Int
-getNlvl ((_,i):_) = i
+getNlvl = getNlvl' . head
 
 setFrame :: Frame -> Level -> Level
-setFrame f ((_,l):xs) = (f,l) : xs
+setFrame f (MkLI _ l : xs) = MkLI f l : xs
+setFrame _ _ = P.error "setFrame"
 
 newLevel :: Level -> Symbol -> [Bool] -> Level
-newLevel [] s bs              = [(newFrame s bs,0)]
-newLevel ls@((pF,lvl):_) s bs = (newFrame s bs, lvl+1) : ls
+newLevel [] s bs              = [MkLI (newFrame s bs) 0]
+newLevel ls@(MkLI _ lvl :_) s bs = MkLI (newFrame s bs) (lvl+1) : ls
 
 getParent :: Level -> Level
 getParent []     = P.error "No fuimos del outermost level"
 getParent (_:xs) = xs
 
 outermost :: Level
-outermost = [(newFrame (pack "_undermain") [],-1) ]
+outermost = [ MkLI (newFrame (pack "_undermain") []) (-1) ]
 
+-- | Clase encargada del manejo de memoria y niveles.
+-- Esta etapa va a consumir el AST y construir un nuevo
+-- lenguaje llamado Código Intermedio.
+-- En este proceso vamos tomando nota cuantas variables define
+-- una función o let, para eventualmente crear los marcos necesarios
+-- para le ejecución de código assembler.
 class (Monad w, TLGenerator w, Demon w) => MemM w where
     -- | Level management
     getActualLevel :: w Int
@@ -89,7 +103,11 @@ class (Monad w, TLGenerator w, Demon w) => MemM w where
     pushFrag  :: Frag -> w ()
     getFrags  :: w [Frag]
 
-
+-- | Generación de código intermedio.
+-- Cada construcción del [AST](src/TigerAbs.hs) la consumiremos
+-- y construiremos un fragmento de código intermedio que eventualmente
+--  se traducirá en código de máquina y ejecutará.
+-- Algunas funciones se especializan más para conseguir un mejor código intermedio.
 class IrGen w where
     procEntryExit :: Level -> BExp -> w ()
     unitExp :: w BExp
@@ -183,9 +201,7 @@ instance (MemM w) => IrGen w where
     -- functionDec :: BExp -> Level -> Bool -> w BExp
     functionDec bd lvl proc = do
         body <- if proc then unNx bd
-                else do
-                        e <- unEx bd
-                        return $ Move (Temp rv) e
+                else Move (Temp rv) <$> unEx bd
         procEntryExit lvl (Nx body)
         return $ Ex $ Const 0
     simpleVar acc level = P.error "COMPLETAR"
@@ -225,18 +241,14 @@ instance (MemM w) => IrGen w where
     seqExp bes = do
         let ret = last bes
         case ret of
-            Nx e' -> do
-                bes' <- mapM unNx bes
-                return $ Nx $ seq bes'
+            Nx _ -> Nx . seq <$> mapM unNx bes
             Ex e' -> do
                     let bfront = init bes
                     ess <- mapM unNx bfront
                     return $ Ex $ Eseq (seq ess) e'
             _ -> internal $ pack "WAT!123"
     -- preWhileforExp :: w ()
-    preWhileforExp = do
-        l <- newLabel
-        pushSalida (Just l)
+    preWhileforExp = newLabel >>= pushSalida . Just
     -- posWhileforExp :: w ()
     posWhileforExp = popSalida
     -- whileExp :: BExp -> BExp -> Level -> w BExp
