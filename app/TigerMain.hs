@@ -50,7 +50,7 @@ calculoEscapadas rawAST opts =
                fail (show err)
            ) (\(tree, envs) ->
                 putStrLn "********* Resultado Stepper *****" >>
-                print envs >>
+                mapM putStrLn (snd envs)>>
                 return tree
                 ) (calcularEscStepper rawAST)
   else

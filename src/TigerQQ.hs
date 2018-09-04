@@ -1,13 +1,16 @@
+{-# Language QuasiQuotes #-}
+{-# Language TemplateHaskell #-}
 module TigerQQ where
 
 import TigerAbs
+import TigerSymbol as TSym
 import TigerParser (parseFromStr)
 
 -- * Quasi-Quotation
 
 import Data.Generics
 import qualified Language.Haskell.TH as TH
-import qualified Language.Haskell.TH.Syntax as Syn
+import Language.Haskell.TH.Syntax as Syn hiding (Exp)
 import Language.Haskell.TH.Quote
 
 -- | Parser de expresiones
@@ -20,8 +23,10 @@ quoteExprExp s =
                  , snd (TH.loc_start loc)
                  )
       expr <- parseFromStr pos s
-      Syn.liftData expr
-      -- dataToExpQ (const Nothing `extQ` antiExprExpr) expr
+      dataToExpQ (const Nothing `extQ` handleSymbol) expr
+
+handleSymbol :: Symbol -> Maybe TH.ExpQ
+handleSymbol s = Just $ TH.appE (TH.varE 'TSym.pack) $ TH.litE $ TH.StringL $ unpack s
 
 -- antiExprExpr :: Exp -> Maybe (TH.Q TH.Exp)
 -- antiExprExpr _ = Nothing -- No antipatterns yets
