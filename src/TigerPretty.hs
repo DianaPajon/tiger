@@ -31,13 +31,14 @@ prettyTy :: Ty -> Doc
 prettyTy = text . show
 
 -- | Completar si quieren mejorar el pp
-prettyField :: [(Symbol, Bool, Ty)] -> Doc
+prettyField :: [(Symbol, Escapa , Ty)] -> Doc
 prettyField = text . show
 
 prettyDec  :: Dec -> Doc
 prettyDec (FunctionDec f) = vcat $ map functionDec f
   where
-    functionDec (s, f, Just r, e, _) = hang (text "function " <> (text $ unpack s) <> (parens $ prettyField f) <> text " : " <> (text $ unpack r) <> (text " = ")) tabWidth (prettyExp e)
+    functionDec (s, f, Just r, e, _) =
+      hang (text "function " <> (text $ unpack s) <> (parens $ prettyField f) <> text " : " <> (text $ unpack r) <> (text " = ")) tabWidth (prettyExp e)
     functionDec (s, f, Nothing, e, _) = hang (text "function " <> (text $ unpack s) <> (parens $ prettyField f) <> (text " = ")) tabWidth (prettyExp e)
 
 prettyDec (VarDec s _ (Just r) e _) = (text $ unpack s) <> text " : " <> (text $ unpack r) <> text " = " <> prettyExp e

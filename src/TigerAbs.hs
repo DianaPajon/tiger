@@ -6,9 +6,13 @@ import           TigerSymbol
 -- más adelante en el modulo [TigerQQ](TigerQQ.hs).
 import           Data.Generics
 
--- | Pos representa la posición, simple de una linea y columna, o bien un rango
+-- | 'Pos' representa la posición, simple de una linea y columna, o bien un rango
 -- de posiciones
 data Pos = Simple {line::Int, col :: Int} | Range Pos Pos
+    deriving (Show, Typeable, Data)
+
+-- | 'Escapa' representa la idea si una variable /escapa/ o no... Ver en el libro
+data Escapa = Escapa | NoEscapa
     deriving (Show, Typeable, Data)
 
 posToLabel :: Pos -> String
@@ -71,7 +75,7 @@ data Exp where
     -- | Bucle while.
     WhileExp :: Exp -> Exp -> Pos -> Exp
     -- | Bucle for.
-    ForExp :: Symbol -> Bool -> Exp -> Exp -> Exp -> Pos -> Exp
+    ForExp :: Symbol -> Escapa -> Exp -> Exp -> Exp -> Pos -> Exp
     -- | Expresiones tipo let. Es el único lugar donde pueden declarar nuevas
     -- varibles, tipos y funciones. Ej: let var a := 3 in a end genera el árbol:
     -- LetExp [VarDec "a" Nothing Nothing (IntExp 3 Pos) Pos] (SimpleVar "a")
@@ -92,7 +96,7 @@ data Dec where
     FunctionDec :: [(Symbol -- Nombre de la función
                     ,[-- Argumentos
                         (Symbol -- Nombre del argumento
-                        , Bool -- Dicho argumento escapa
+                        , Escapa -- Dicho argumento escapa
                         , Ty) -- Tipo escrito, ver [Ty]
                      ] --
                     , Maybe Symbol -- Tipo de retorno, que puede no estar.
@@ -102,7 +106,7 @@ data Dec where
     -- | Declaración de variable. Estas vienen solas.
     -- var NOMBRE : [TIPO] := VALOR_INICIAL
     VarDec :: Symbol  -- Nombre
-            -> Bool -- Escapa?
+            -> Escapa
             -> Maybe Symbol -- El tipo, es opcional.
             -> Exp -- Valor Inicial
             -> Pos -> Dec

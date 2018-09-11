@@ -11,7 +11,7 @@ import TigerLexer
 import TigerSymbol
 
 binary s f assoc ln = Ex.Infix (do
-                        reservedOp s 
+                        reservedOp s
                         return (\e1 e2 -> OpExp e1 f e2 ln)) assoc
 
 amperCmp ln = Ex.Infix (do
@@ -63,13 +63,13 @@ variable = do
     let st = SimpleVar $ pack s
     (v' st)
 
-field :: Parser [(Symbol, Bool, Ty)]
+field :: Parser [(Symbol, Escapa , Ty)]
 field =
     commaSep (do
         n <- identifier
         colon
         ty <- identifier
-        return (pack n, False, NameTy (pack ty)))
+        return (pack n, NoEscapa , NameTy (pack ty)))
 
 field' :: Parser [(Symbol, Ty)]
 field' =
@@ -90,7 +90,7 @@ mTypo = (do
     colon
     ftype) <|> return Nothing
 
-fundec :: Parser (Symbol,[(Symbol, Bool, Ty)], Maybe Symbol, Exp, Pos)
+fundec :: Parser (Symbol,[(Symbol, Escapa , Ty)], Maybe Symbol, Exp, Pos)
 fundec = do
     p <- gline
     reserved "function"
@@ -112,7 +112,7 @@ vardec = do
         t <- mTypo
         e <- maybe (symbol "=") (const $ symbol ":=") t >> expression
         return (VarDec (pack name)
-                False -- Todas las variables **no** escapan por default.
+                NoEscapa -- Todas las variables __no__ escapan por default.
                 t e p)
 
 namety :: Parser Ty
@@ -199,7 +199,7 @@ forexp = do
     hi <- expression
     reserved "do"
     body <- expression
-    return (ForExp (pack i) False lo hi body p)
+    return (ForExp (pack i) NoEscapa lo hi body p)
 
 whileexp :: Parser Exp
 whileexp = do

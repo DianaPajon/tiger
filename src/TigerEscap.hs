@@ -1,9 +1,3 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies          #-}
-
 module TigerEscap where
 
 -- Ocultamos nombres del preludio, pero por ahí usar error es algo
@@ -47,13 +41,13 @@ class (Demon m, Monad m) => Escapator m where
     -- Necesitamos update (y por ende estados)
     -- porque la información de que una variable escapa
     -- no está en Var.
-    update :: Symbol -> Bool -> m ()
+    update :: Symbol -> Escapa -> m ()
     -- | Busca el symbolo en el entorno
-    lookup :: Symbol -> m (Maybe (Int, Bool))
+    lookup :: Symbol -> m (Maybe (Int, Escapa))
     -- | Permite agregar variables a un entorno local.
     -- ```insert name esc computacion```
     -- computacion tiene un entorno[name -> esc]
-    insert :: Symbol -> Bool -> m a -> m a
+    insert :: Symbol -> Escapa -> m a -> m a
 
 lookUpLvl :: (Escapator m) => Symbol -> m Int
 lookUpLvl nm = lookup nm >>= maybe (notfound nm) (return . fst)
@@ -62,7 +56,7 @@ travVar :: (Escapator m) => Var -> m Var
 travVar (SimpleVar s) = do
     lvl <- lookUpLvl s
     actLvl <- depth
-    when (actLvl > lvl) (update s True)
+    when (actLvl > lvl) (update s Escapa)
     return (SimpleVar s)
 travVar (FieldVar v p) = do
     v' <- travVar v
@@ -84,9 +78,7 @@ travExp (OpExp l op r p) = do
     r' <- travExp r
     return (OpExp l' op r' p)
 travExp (RecordExp es s p) = do
-    es' <- mapM (\(s,e) -> do
-                                e' <- travExp e
-                                return (s,e')) es
+    es' <- mapM (\(s',e) -> travExp e >>= return . (s',)) es
     return (RecordExp es' s p)
 travExp (SeqExp es p) = do
     es' <- mapM travExp es
@@ -133,7 +125,7 @@ travExp (ArrayExp typ size init p) = do
     return (ArrayExp typ s' init' p)
 travExp v = return v
 
-travF :: (Escapator m) => (Symbol,[(Symbol, Bool, Ty)], Maybe Symbol, Exp, Pos) -> m (Symbol,[(Symbol, Bool, Ty)], Maybe Symbol, Exp, Pos)
+travF :: (Escapator m) => (Symbol,[(Symbol, Escapa , Ty)], Maybe Symbol, Exp, Pos) -> m (Symbol,[(Symbol, Escapa , Ty)], Maybe Symbol, Exp, Pos)
 travF (name, params, res, body, p) = do
     (body', params') <- bulkInsert (map (\(a,b,_) -> (a,b)) params) (do
       body' <- travExp body
@@ -145,7 +137,7 @@ travF (name, params, res, body, p) = do
       return (body', ds'))
     return (name, params', res, body', p)
 
-bulkInsert :: (Escapator m) => [(Symbol, Bool)] -> m a -> m a
+bulkInsert :: (Escapator m) => [(Symbol, Escapa)] -> m a -> m a
 bulkInsert xs m = foldr (\(name, esc) res -> insert name esc res) m xs
 
 travDecs :: (Escapator m) => [Dec] -> m a -> m a
@@ -177,7 +169,7 @@ type Depth = Int
 
 -- El dato que vamos a llevar en el mapa es el nivel en que se definió la variable
 -- y si escapa o no.
-type Dat = (Int , Bool)
+type Dat = (Int , Escapa)
 
 -- El entorno va a ser simplemente el mapa que lleva la cuenta...
 type Env = M.Map Symbol Dat
@@ -209,7 +201,7 @@ instance Demon Mini where
   adder w s = catchError w (throwError . flip eappend s)
 
 instance Escapator Mini where
-  depth = get >>= return . lvl
+  depth = lvl <$> get
   up m = do
     old <- get
     put (old{lvl = lvl old + 1})

@@ -280,16 +280,16 @@ initConf :: Estado
 initConf = Est
            { tEnv = M.insert (pack "int") (TInt RW) (M.singleton (pack "string") TString)
            , vEnv = M.fromList
-                    [(pack "print", Func (1,pack "print",[TString], TUnit, True))
-                    ,(pack "flush", Func (1,pack "flush",[],TUnit, True))
-                    ,(pack "getchar",Func (1,pack "getchar",[],TString,True))
-                    ,(pack "ord",Func (1,pack "ord",[TString],TInt RW,True))
-                    ,(pack "chr",Func (1,pack "chr",[TInt RW],TString,True))
-                    ,(pack "size",Func (1,pack "size",[TString],TInt RW,True))
-                    ,(pack "substring",Func (1,pack "substring",[TString,TInt RW, TInt RW],TString,True))
-                    ,(pack "concat",Func (1,pack "concat",[TString,TString],TString,True))
-                    ,(pack "not",Func (1,pack "not",[TBool],TBool,True))
-                    ,(pack "exit",Func (1,pack "exit",[TInt RW],TUnit,True))
+                    [(pack "print", Func (1,pack "print",[TString], TUnit, Runtime))
+                    ,(pack "flush", Func (1,pack "flush",[],TUnit, Runtime))
+                    ,(pack "getchar",Func (1,pack "getchar",[],TString,Runtime))
+                    ,(pack "ord",Func (1,pack "ord",[TString],TInt RW,Runtime))
+                    ,(pack "chr",Func (1,pack "chr",[TInt RW],TString,Runtime))
+                    ,(pack "size",Func (1,pack "size",[TString],TInt RW,Runtime))
+                    ,(pack "substring",Func (1,pack "substring",[TString,TInt RW, TInt RW],TString,Runtime))
+                    ,(pack "concat",Func (1,pack "concat",[TString,TString],TString,Runtime))
+                    ,(pack "not",Func (1,pack "not",[TBool],TBool,Runtime))
+                    ,(pack "exit",Func (1,pack "exit",[TInt RW],TUnit,Runtime))
                     ]
            }
 

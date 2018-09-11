@@ -10,6 +10,7 @@ import qualified Prelude             as P (error)
 import qualified TigerAbs            as Abs
 import           TigerErrores
 import           TigerFrame          as F
+import           TigerSres           (Externa (..))
 import           TigerSymbol         as T
 import           TigerTemp
 import           TigerTree
@@ -24,7 +25,9 @@ import           Debug.Trace
 
 type TransFrag = Frag -- Reexport Fragtype
 
--- Empaquetadores de expresiones
+data IsProc = IsProc | IsFun
+
+-- | Empaquetadores de expresiones
 data BExp = Ex Exp | Nx Stm | Cx ((Label, Label) -> Stm)
 
 instance Show BExp where
@@ -32,14 +35,14 @@ instance Show BExp where
     show (Nx e)  = "Nx " ++ show e
     show (Cx _ ) = "Cx "
 
--- Los niveles son un stack de (Frame, Int)
+-- | Los niveles son un stack de (Frame, Int)
 -- Recordar que Frame es una representación del Marco Virtual.
 data LevelI = MkLI {getFrame' :: Frame, getNlvl' :: Int}
   deriving Show
 
 type Level = [LevelI]
 
--- Helpers de niveles.
+-- | Helpers de niveles.
 getFrame :: Level -> Frame
 getFrame = getFrame' . head
 
@@ -48,10 +51,10 @@ getNlvl = getNlvl' . head
 
 setFrame :: Frame -> Level -> Level
 setFrame f (MkLI _ l : xs) = MkLI f l : xs
-setFrame _ _ = P.error "setFrame"
+setFrame _ _               = P.error "setFrame"
 
 newLevel :: Level -> Symbol -> [Bool] -> Level
-newLevel [] s bs              = [MkLI (newFrame s bs) 0]
+newLevel [] s bs                 = [MkLI (newFrame s bs) 0]
 newLevel ls@(MkLI _ lvl :_) s bs = MkLI (newFrame s bs) (lvl+1) : ls
 
 getParent :: Level -> Level
@@ -119,7 +122,7 @@ class IrGen w where
     fieldVar :: BExp -> Int -> w BExp
     subscriptVar :: BExp -> BExp -> w BExp
     recordExp :: [(BExp,Int)]  -> w BExp
-    callExp :: Label -> Bool -> Bool -> Level -> [BExp] -> w BExp
+    callExp :: Label -> Externa -> IsProc -> Level -> [BExp] -> w BExp
     letExp :: [BExp] -> BExp -> w BExp
     breakExp :: w BExp
     seqExp :: [BExp] -> w BExp
@@ -133,7 +136,7 @@ class IrGen w where
     assignExp :: BExp -> BExp -> w BExp
     preFunctionDec :: Level -> w ()
     posFunctionDec :: w ()
-    functionDec :: BExp -> Level -> Bool -> w BExp
+    functionDec :: BExp -> Level -> Externa -> w BExp
     binOpIntExp :: BExp -> Abs.Oper -> BExp -> w BExp
     binOpIntRelExp :: BExp -> Abs.Oper -> BExp -> w BExp
     binOpStrExp :: BExp -> Abs.Oper -> BExp -> w BExp
@@ -200,8 +203,9 @@ instance (MemM w) => IrGen w where
     posFunctionDec = popSalida >> downLvl
     -- functionDec :: BExp -> Level -> Bool -> w BExp
     functionDec bd lvl proc = do
-        body <- if proc then unNx bd
-                else Move (Temp rv) <$> unEx bd
+        body <- case proc of
+                  Runtime -> unNx bd
+                  Propia  -> Move (Temp rv) <$> unEx bd
         procEntryExit lvl (Nx body)
         return $ Ex $ Const 0
     simpleVar acc level = P.error "COMPLETAR"
@@ -224,7 +228,7 @@ instance (MemM w) => IrGen w where
                 (Mem $ Binop Plus (Temp tvar) (Binop Mul (Temp tind) (Const wSz)))
     -- recordExp :: [(BExp,Int)]  -> w BExp
     recordExp flds = P.error "COMPLETAR"
-    -- callExp :: Label -> Bool -> Bool -> Level -> [BExp] -> w BExp
+    -- callExp :: Label -> Externa -> Bool -> Level -> [BExp] -> w BExp
     callExp name external isproc lvl args = P.error "COMPLETAR"
     -- letExp :: [BExp] -> BExp -> w BExp
     letExp [] e = do -- Puede parecer al dope, pero no...
