@@ -2,8 +2,7 @@ module TigerTips where
 
 import           TigerErrores
 import           TigerSymbol
-
-type Unique = Int
+import TigerUnique
 
 data RWO = RW | RO
     deriving (Show,Eq)

@@ -1,32 +1,33 @@
 module TigerSeman where
 
 import           TigerAbs
-import           TigerErrores         as E
+import           TigerErrores               as E
 import           TigerSres
 import           TigerSymbol
 import           TigerTips
+import           TigerUnique
 
 -- Segunda parte imports:
 import           TigerTemp
 -- import           TigerTrans
 
 -- Monads
-import qualified Control.Conditional  as C
+import qualified Control.Conditional        as C
 import           Control.Monad
-import           Control.Monad.Trans.Except
 import           Control.Monad.State
+import           Control.Monad.Trans.Except
 
 -- Data
-import           Data.List            as List
-import           Data.Map             as M
-import           Data.Ord             as Ord
+import           Data.List                  as List
+import           Data.Map                   as M
+import           Data.Ord                   as Ord
 
 -- Le doy nombre al Preludio.
-import           Prelude              as P
+import           Prelude                    as P
 
 -- Debugging. 'trace :: String -> a -> a'
 -- imprime en pantalla la string cuando se ejecuta.
-import           Debug.Trace          (trace)
+import           Debug.Trace                (trace)
 
 -- * Análisis Semántico, aka Inferidor de Tipos
 
@@ -88,9 +89,9 @@ class (Demon w, Monad w) => Manticore w where
     tiposIguales  e (RefRecord s) = E.internal $ pack $ "No son tipos iguales... 123+4" ++ (show e ++ show s)
     tiposIguales a b = return (equivTipo a b)
     --
-    -- | Generador de uniques. Etapa 2
+    -- | Generador de uniques.
     --
-    -- ugen :: w Unique
+    ugen :: w Unique
 
 -- | Definimos algunos helpers
 
@@ -294,12 +295,14 @@ initConf = Est
            }
 
 -- Utilizando alguna especie de run de la monada definida, obtenemos algo así
-type Monada = StateT Estado (ExceptT Symbol StGen)
+type Monada = ExceptT Symbol (StateT Estado StGen)
+  -- StateT Estado (ExceptT Symbol StGen)
 
 instance Demon Monada where
-  -- | Levantamos la operación de 'throwE' de la mónada de excepciones.
-  derror =  lift . throwE
+  -- | 'throwE' de la mónada de excepciones.
+  derror =  throwE
   -- TODO: Parte del estudiante
+  -- adder :: w a -> Symbol -> w a
 instance Manticore Monada where
   -- | A modo de ejemplo esta es una opción de ejemplo de 'insertValV :: Symbol -> ValEntry -> w a -> w'
     insertValV sym ventry m = do
@@ -313,10 +316,12 @@ instance Manticore Monada where
       put oldEst
       -- | retornamos el valor que resultó de ejecutar la monada en el entorno expandido.
       return a
+    -- ugen :: w Unique
+    ugen = mkUnique
   -- TODO: Parte del estudiante
 
 runMonada :: Monada ((), Tipo)-> StGen (Either Symbol ((), Tipo))
-runMonada = runExceptT . flip evalStateT initConf
+runMonada =  flip evalStateT initConf . runExceptT
 
 runSeman :: Exp -> StGen (Either Symbol ((), Tipo))
 runSeman = runMonada . transExp

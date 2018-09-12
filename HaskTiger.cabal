@@ -25,6 +25,7 @@ library
         , TigerSres
         , TigerSymbol
         , TigerTips
+        , TigerUnique
       -- Segunda entrega
         -- Edited
         , TigerTemp

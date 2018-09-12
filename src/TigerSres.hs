@@ -2,6 +2,7 @@ module TigerSres where
 
 import TigerTips
 import TigerTemp
+import TigerUnique
 -- import TigerTrans
 -- import TigerFrame
 

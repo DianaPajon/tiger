@@ -1,8 +1,10 @@
+{-# Language UndecidableInstances #-}
 module TigerTemp where
 
 import           Control.Monad.State
 
 import           TigerSymbol
+import           TigerUnique
 
 type Label = Symbol
 type Temp  = Symbol
@@ -13,10 +15,10 @@ makeStringT = unpack
 makeStringL :: Label -> String
 makeStringL = unpack
 
-detgenTemp :: Int -> Temp
+detgenTemp :: Integer -> Temp
 detgenTemp i = pack ("T"++show i)
 
-detgenLabel :: Int -> Label
+detgenLabel :: Integer -> Label
 detgenLabel i = pack ("L"++show i)
 
 -- | Clase generadora de temps, y labels
@@ -24,11 +26,10 @@ class TLGenerator w where
     newTemp :: w Temp
     newLabel :: w Label
 
-type StGen = State Int
-instance TLGenerator StGen where
-  newTemp = modify (+1) >> gets detgenTemp
-  newLabel = modify (+1) >> gets detgenLabel
+instance (Monad p , UniqueGenerator p) => TLGenerator p where
+  newTemp = detgenTemp <$> mkUnique
+  newLabel = detgenLabel <$> mkUnique
 
-instance MonadTrans t => TLGenerator (t StGen) where
+instance (MonadTrans t, TLGenerator m, Monad m) => TLGenerator (t m) where
   newTemp = lift newTemp
   newLabel = lift newLabel
