@@ -20,14 +20,11 @@ instance Monad (State s) where
                    let (x' , s' ) = runSt x s
                         in runSt (g x') s'
 
-internalGet :: State a a
-internalGet = St $ \s -> (s,s)
+get :: State a a
+get = St $ \s -> (s,s)
 
-internalPut :: b -> State b ()
-internalPut b = St $ const ((), b)
+put :: b -> State b ()
+put b = St $ const ((), b)
 
 modify :: (s -> s) -> State s ()
-modify f = internalGet >>= (internalPut . f)
-
-internalEvalState :: State s a -> s -> (a, s)
-internalEvalState = runSt
+modify f = get >>= (put . f)
