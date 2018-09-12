@@ -1,6 +1,6 @@
 module Main (main) where
 import           Control.Monad
-import           Control.Monad.State
+import           Control.Monad.State   hiding (evalState)
 import           Data.Either
 import           Data.Maybe
 import           System.Console.GetOpt
@@ -80,5 +80,5 @@ main = do
     rawAst <- parserStep opts' s sourceCode
     ast <- calculoEscapadas rawAst opts'
     when (optArbol opts') (showExp ast)
-    let _ = runSt (templabRel ast) 0
+    let _ = evalState (templabRel ast) 0
     print "Genial!"
