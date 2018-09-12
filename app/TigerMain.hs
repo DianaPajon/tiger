@@ -80,5 +80,5 @@ main = do
     rawAst <- parserStep opts' s sourceCode
     ast <- calculoEscapadas rawAst opts'
     when (optArbol opts') (showExp ast)
-    let _ = evalState (templabRel ast) 0
+    let _ = runSt (templabRel ast) 0
     print "Genial!"
