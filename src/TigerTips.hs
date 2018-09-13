@@ -7,6 +7,8 @@ import TigerUnique
 data RWO = RW | RO
     deriving (Show,Eq)
 
+-- # Libro: /Bindings for the Tiger Compiler/ [5.2]
+
 -- | Representa la posición en memoria en la que va a estar el campo
 -- de un record
 -- Es decir, el offset en palabras del puntero a la /primer posición/.

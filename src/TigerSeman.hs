@@ -145,7 +145,7 @@ buscarM s ((s',t,_):xs) | s == s' = Just t
 
 -- | __Completar__ 'transVar'.
 -- El objetivo de esta función es obtener el tipo
--- de la variable a la que se está **accediendo**.
+-- de la variable a la que se está __accediendo__.
 -- ** transVar :: (MemM w, Manticore w) => Var -> w (BExp, Tipo)
 transVar :: (Manticore w) => Var -> w ( () , Tipo)
 transVar (SimpleVar s)      = undefined -- Nota [1]
@@ -210,7 +210,8 @@ transExp (OpExp el' oper er' p) = do -- Esta va /gratis/
                            else addpos (derror (pack "Error en el chequeo de una comparación.")) p
 -- | Recordemos que 'RecordExp :: [(Symbol, Exp)] -> Symbol -> Pos -> Exp'
 -- Donde el primer argumento son los campos del records, y el segundo es
--- el texto plano de un tipo (que ya debería estar definido).
+-- el texto plano de un tipo (que ya debería estar definido). Una expresión
+-- de este tipo está creando un nuevo record.
 transExp(RecordExp flds rt p) =
   addpos (getTipoT rt) p >>= \case -- Buscamos en la tabla que tipo es 'rt', y hacemos un análisis por casos.
     trec@(TRecord fldsTy _) -> -- ':: TRecord [(Symbol, Tipo, Int)] Unique'

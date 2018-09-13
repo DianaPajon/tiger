@@ -91,8 +91,8 @@ data Exp where
 -- | Declaraciones!
 data Dec where
     -- | Declaraciones de funciones. Recordar que vienen en pack, dado
-    -- que las funciones definidas en forma contigua son mutuamente
-    -- recursivas.
+    -- que las funciones definidas en forma contigua son __mutuamente
+    -- recursivas__.
     FunctionDec :: [(Symbol -- Nombre de la función
                     ,[-- Argumentos
                         (Symbol -- Nombre del argumento
