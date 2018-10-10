@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module TigerSeman where
 
 import           TigerAbs
@@ -9,7 +10,7 @@ import           TigerUnique
 
 -- Segunda parte imports:
 import           TigerTemp
--- import           TigerTrans
+import           TigerTrans
 
 -- Monads
 import qualified Control.Conditional        as C
@@ -42,7 +43,7 @@ import           Debug.Trace                (trace)
 -- este modulo. Mi consejo es que sean /lo más ordenados posible/ teniendo en cuenta
 -- que van a tener que reescribir bastante.
 
-class (Demon w, Monad w) => Manticore w where
+class (Demon w, Monad w, MemM w) => Manticore w where
   -- | Inserta una Variable al entorno
     insertValV :: Symbol -> ValEntry -> w a -> w a
   -- | Inserta una Función al entorno
@@ -92,6 +93,8 @@ class (Demon w, Monad w) => Manticore w where
     -- | Generador de uniques.
     --
     ugen :: w Unique
+
+
 
 -- | Definimos algunos helpers
 
@@ -147,10 +150,22 @@ buscarM s ((s',t,_):xs) | s == s' = Just t
 -- El objetivo de esta función es obtener el tipo
 -- de la variable a la que se está __accediendo__.
 -- ** transVar :: (MemM w, Manticore w) => Var -> w (BExp, Tipo)
-transVar :: (Manticore w) => Var -> w ( () , Tipo)
-transVar (SimpleVar s)      = undefined -- Nota [1]
-transVar (FieldVar v s)     = undefined
-transVar (SubscriptVar v e) = undefined
+transVar :: (Manticore w) => Var -> w ( BExp , Tipo)
+transVar (SimpleVar s)      = do t <- getTipoValV s -- Nota [1]
+                                 nil <- nilExp
+                                 return (nil, t)
+transVar (FieldVar v s)     = do (e, tBase) <- transVar v
+                                 nil <- nilExp
+                                 case tBase of 
+                                  TRecord fs u -> case buscarM s fs of
+                                                    Just t -> return (nil, t)
+                                                    Nothing -> derror $ pack  "No se encontró el campo."
+                                  _ -> derror $ pack "No es un record"
+transVar (SubscriptVar v e) = do (e, tBase ) <- transVar v
+                                 nil <- nilExp
+                                 case tBase of
+                                  TArray t u -> return (nil, t)
+                                  _ -> derror $ pack "No es un array"
 
 -- | __Completar__ 'TransTy'
 -- El objetivo de esta función es dado un tipo
@@ -161,30 +176,171 @@ transVar (SubscriptVar v e) = undefined
 -- que 'TransTy ' no necesita ni 'MemM ' ni devuelve 'BExp'
 -- porque no se genera código intermedio en la definición de un tipo.
 transTy :: (Manticore w) => Ty -> w Tipo
-transTy (NameTy s)      = undefined
-transTy (RecordTy flds) = undefined
-transTy (ArrayTy s)     = undefined
+transTy (ArrayTy s) =
+  do
+    unique <- ugen
+    tipo <- getTipoT s
+    return $ TArray tipo unique
+transTy (RecordTy flds) = 
+  do 
+    let simbolos = P.map fst flds
+    tipos <- mapM (transTy) (P.map snd flds)
+    unique <- ugen
+    let componentes = triZip simbolos tipos (repeat 0)
+    return $ TRecord componentes unique
+transTy (NameTy s) = --Es importante diferenciar las 
+  getTipoT s
+
+-- Esta funcion se encarga de detectar los bucles ilegales en la lista de tipos definidos
+noBadLoops :: [(Symbol,Ty,Pos)]  -> [(Symbol,Ty,Pos)] -> Bool
+noBadLoops [] ys = True
+noBadLoops ((s,NameTy sim,p):xs) ys = (P.foldr (\(s,t,p) b-> sim /= s && b) True (((s,NameTy sim,p):xs) ++ ys))
+                                      && ( noBadLoops xs ((s, NameTy sim, p):ys))
+noBadLoops ((s,t,p):xs) ys = noBadLoops xs ((s,t,p):ys)
+
+-- Esta función se encarga de eliminar la gramatica del ABS y pasar
+-- las definiciones de tipo a la gramatica interna del compilador.
+-- Los tipos estan referidos, 
+preTy :: (Manticore w) => (Symbol, Ty, Pos) -> w (Symbol, Tipo)
+preTy (sim,(NameTy s),p)      = return (sim, TTipo s)
+preTy (sim,(RecordTy flds),p) = do unique <- ugen
+                                   return (sim, TRecord (P.map (\(sim,NameTy s) -> (sim, RefRecord s, 0))  flds) unique)
+preTy (sim,(ArrayTy s),p)     = do unique <- ugen
+                                   return (sim, TArray (TTipo s) unique)
+
+
+-- Dada una lista de definiciones de la función anterior, detecta que tipos se refieren entre si
+-- y reemplaza el resto.
+cleanTy :: (Manticore w) => [Symbol] -> Tipo -> w Tipo
+cleanTy sims (RefRecord s) = 
+  if elem s sims 
+  then return $ RefRecord s
+  else getTipoT s
+cleanTy sims (TTipo s) = 
+  if elem s sims 
+  then return $ TTipo s
+  else getTipoT s
+cleanTy sims (TArray t u) = 
+  do ct <- cleanTy sims t
+     return (TArray ct u)
+cleanTy sims (TRecord ts u) = 
+  do let tiposRecord = P.map (\(a,b,c) -> b) ts
+     ctipos <- mapM (cleanTy sims) tiposRecord
+     let nuevosTiposRecord = zipWith (\(a,b,c) t -> (a,t,c)) ts ctipos
+     return $ TRecord nuevosTiposRecord u
+cleanTy sims lala = return lala
+
+-- | Dada una lista de definiciones de la función anterior, detecta que tipos se refieren entre si
+-- y reemplaza el resto.
+cleanTys :: (Manticore w) => [Symbol] -> [(Symbol, Tipo)] -> w [(Symbol, Tipo)]
+cleanTys ssims [] = return []
+cleanTys sims ((s,t) : sts) = 
+  do tip <- cleanTy sims t
+     tipos <- cleanTys sims sts
+     return ((s,tip):tipos)
+
+elemTupla :: Eq a => a -> [(a, b)] -> b
+elemTupla s ((ss,t):ts) = if s == ss then t else elemTupla s ts
+     
+-- | Esta función, dada la definicón anterior, genera los tipos REALES del compilador
+-- como valores lazy para guardar en un mapa.
+arreglarLazy :: Tipo -> [(Symbol, Tipo)] -> Tipo
+arreglarLazy (RefRecord s) tipos = arreglarLazy (elemTupla s tipos) tipos
+arreglarLazy (TTipo s) tipos = arreglarLazy (elemTupla s tipos) tipos
+arreglarLazy (TRecord ts u) tipos = TRecord (P.map (\(s,t,i) -> (s, arreglarLazy t tipos,i)) ts) u
+arreglarLazy (TArray t u) tipos = TArray (arreglarLazy t tipos) u
+arreglarLazy lala tipos = lala
+
+
+
+triZip :: [a] -> [b] -> [c] -> [(a,b,c)]
+triZip as bs cs = P.map (\((a,b),c) -> (a,b,c)) (zip (zip as bs) cs)
 
 
 fromTy :: (Manticore w) => Ty -> w Tipo
 fromTy (NameTy s) = getTipoT s
 fromTy _ = P.error "no debería haber una definición de tipos en los args..."
 
+
 -- | Tip: Capaz que se debería restringir el tipo de 'transDecs'.
 -- Tip2: Van a tener que pensar bien que hacen. Ver transExp (LetExp...)
 -- ** transDecs :: (MemM w, Manticore w) => [Dec] -> w a -> w a
-transDecs :: (Manticore w) => [Dec] -> w a -> w a
-transDecs ((FunctionDec fs) : xs)          = id
-transDecs ((VarDec nm escap t init p): xs) = id
-transDecs ((TypeDec xs): xss)              = id
+transDecs :: (Manticore w) => [Dec] -> w (BExp,Tipo) -> w (BExp,Tipo)
+transDecs ((VarDec nm escap t init p): xs) exp = do 
+  nil <- nilExp
+  (u, tipoExp) <- transExp init
+  tipoDeclarado <- case t of
+                    Just s -> getTipoT s
+                    Nothing -> (return TUnit)
+  iguales <- tiposIguales tipoExp tipoDeclarado
+  if (tipoDeclarado == TUnit || iguales)
+  then do val <- transDecs xs (insertValV nm tipoExp exp)
+          return val
+  else derror $ pack "El tipo declarado no conicide con el de la expresión dada"
+transDecs ((TypeDec xs): xss)             exp = -- REVISAR COMPLETAMENTE ESTE CODIGO, ES UNA MUGRE. EN SERIO, MUGRE.
+  if (noBadLoops xs [])
+  then do tys <- mapM preTy xs
+          let sims = P.map fst tys
+          clean <- cleanTys sims tys
+          let decs = P.map (\(s,t) ->(s,arreglarLazy t clean)) clean
+          transDecs xss (P.foldr (\(s,t) e -> insertTipoT s t e) (exp) decs)
+  else derror $ pack "Tipos recursivos mal declarados"
+transDecs ((FunctionDec fs) : xs)          exp = do 
+  let simbolos = P.map (\(simbolos,fields, tipo, expre, pos) -> simbolos) fs
+  let expresiones = P.map (\(simbolos,fields, tipo, expre, pos) -> expre) fs
+  argEntries <- mapM (mapM mkArgEntries) $ P.map (\(simbolos,fields, tipo, expre, pos) -> fields) fs
+  entries <- mapM mkFunEntry fs
+  let expresionesTemporales = P.map 
+                               (\expresion -> P.foldr (\(s,e) exp -> insertFunV s e exp) (transExp expresion) entries) 
+                               expresiones
+  tlist <- mapM (\(expresionTemporal,argList) ->
+                        P.foldr 
+                          (\(s,t) expresion -> insertValV s t expresion) 
+                          expresionTemporal
+                          argList
+                     )
+                     (zip expresionesTemporales argEntries)
+  let tiposSemanticos = P.map snd tlist
+  tipaList <- mapM 
+                (\(tipoDeclarado, tipoSemantico) -> tiposIguales tipoDeclarado tipoSemantico)
+                (zip (P.map getTipoEntry (P.map snd entries)) tiposSemanticos)
+  let tipa = P.foldr (&&) True tipaList
+  if tipa
+    then transDecs xs (P.foldr (\(s,funentry) e -> insertFunV s funentry e) (exp) entries)
+    else derror $ pack "Las funciones no tipan" --Ver como mejorar.
+  nil <- nilExp
+  return (nil, snd $ head tlist)
+
+
+mkArgEntries :: (Manticore w) => (Symbol, Escapa, Ty) -> w (Symbol, Tipo)
+mkArgEntries (s,e,t) = do
+  tipo <- fromTy t
+  return (s,tipo)
+
+getTipoEntry :: (Unique, Label, [Tipo], Tipo, Externa) -> Tipo
+getTipoEntry (u,l,ts,t,e) = t
+
+mkFunEntry :: (Manticore w) => (Symbol ,[(Symbol, Escapa, Ty)], Maybe Symbol, Exp, Pos) -> w (Symbol, FunEntry)
+mkFunEntry (nombre, args, ret, cuerpo, pos) = do 
+  unique <- ugen
+  let label = pack (unpack nombre ++ show unique)
+  tipos <- mapM (\(s,e,t) -> transTy t) args
+  tipo <- case ret of
+          Nothing -> return TUnit
+          Just t -> getTipoT t
+  return (nombre, (unique, label, tipos, tipo, Propia))
 
 -- ** transExp :: (MemM w, Manticore w) => Exp -> w (BExp , Tipo)
-transExp :: (Manticore w) => Exp -> w (() , Tipo)
+transExp :: (Manticore w) => Exp -> w (BExp , Tipo)
 transExp (VarExp v p) = addpos (transVar v) p
-transExp UnitExp{} = return ((), TUnit) -- ** fmap (,TUnit) unitExp
-transExp NilExp{} = return ((), TNil) -- ** fmap (,TNil) nilExp
-transExp (IntExp i _) = return ((), TInt RW) -- ** fmap (,TInt RW) (intExp i)
-transExp (StringExp s _) = return (() , TString) -- ** fmap (,TString) (stringExp (pack s))
+transExp UnitExp{} = do nil <- nilExp
+                        return (nil, TUnit) -- ** fmap (,TUnit) unitExp
+transExp NilExp{} = do nil <- nilExp
+                       return (nil, TNil) -- ** fmap (,TNil) nilExp
+transExp (IntExp i _) = do nil <- nilExp
+                           return (nil, TInt RW) -- ** fmap (,TInt RW) (intExp i)
+transExp (StringExp s _) = do nil <- nilExp
+                              return (nil , TString) -- ** fmap (,TString) (stringExp (pack s))
 transExp (CallExp nm args p) = undefined -- Completar
 transExp (OpExp el' oper er' p) = do -- Esta va /gratis/
         (_ , el) <- transExp el'
@@ -206,14 +362,15 @@ transExp (OpExp el' oper er' p) = do -- Esta va /gratis/
           GeOp -> oOps el er
           where oOps l r = if equivTipo l r -- Chequeamos que son el mismo tipo
                               && equivTipo l (TInt RO) -- y que además es Entero. [Equiv Tipo es una rel de equiv]
-                           then return ((), TInt RO)
+                           then do nil <- nilExp; return (nil, TInt RO)
                            else addpos (derror (pack "Error en el chequeo de una comparación.")) p
 -- | Recordemos que 'RecordExp :: [(Symbol, Exp)] -> Symbol -> Pos -> Exp'
 -- Donde el primer argumento son los campos del records, y el segundo es
 -- el texto plano de un tipo (que ya debería estar definido). Una expresión
 -- de este tipo está creando un nuevo record.
-transExp(RecordExp flds rt p) =
-  addpos (getTipoT rt) p >>= \case -- Buscamos en la tabla que tipo es 'rt', y hacemos un análisis por casos.
+transExp(RecordExp flds rt p) = 
+  addpos (getTipoT rt) p >>= (
+    \x -> case x of -- Buscamos en la tabla que tipo es 'rt', y hacemos un análisis por casos.
     trec@(TRecord fldsTy _) -> -- ':: TRecord [(Symbol, Tipo, Int)] Unique'
       do
         -- Especial atención acá.
@@ -226,8 +383,10 @@ transExp(RecordExp flds rt p) =
         let ordered = List.sortBy (Ord.comparing fst) fldsTys
         -- asumiendo que no nos interesan como el usuario ingresa los campos los ordenamos.
         _ <- flip addpos p $ cmpZip ( (\(s,(c,t)) -> (s,t)) <$> ordered) fldsTy -- Demon corta la ejecución.
-        return ((), trec) -- Si todo fue bien devolvemos trec.
+        nil <- nilExp
+        return (nil, trec) -- Si todo fue bien devolvemos trec.
     _ -> flip addpos p $ derror (pack "Error de tipos.")
+  )
 transExp(SeqExp es p) = fmap last (mapM transExp es)
   -- last <$> mapM transExp es
 -- ^ Notar que esto queda así porque no nos interesan los
@@ -235,7 +394,14 @@ transExp(SeqExp es p) = fmap last (mapM transExp es)
 -- do
 --       es' <- mapM transExp es
 --       return ( () , snd $ last es')
-transExp(AssignExp var val p) = error "Completar"
+transExp(AssignExp var val p) = 
+  do (_, tipoVar) <- transVar var
+     (_, tipoExp) <- transExp val
+     iguales <- tiposIguales tipoVar tipoExp
+     nil <- nilExp
+     if (iguales)
+      then return (nil, TNil)
+      else derror $ pack ("Los tipos no coinciden en la asignaciòn, linea " ++ show p)
 transExp(IfExp co th Nothing p) = do
         -- ** (ccond , co') <- transExp co
   -- Analizamos el tipo de la condición
@@ -244,11 +410,12 @@ transExp(IfExp co th Nothing p) = do
         unless (equivTipo co' TBool) $ errorTiposMsg p "En la condición del if->" co' TBool -- Claramente acá se puede dar un mejor error.
         -- ** (cth , th') <- transExp th
   -- Analizamos el tipo del branch.
-        (() , th') <- transExp th
+        (u , th') <- transExp th
   -- chequeamos que sea de tipo Unit.
         unless (equivTipo th' TUnit) $ errorTiposMsg p "En el branch del if->" th' TUnit
   -- Si todo fue bien, devolvemos que el tipo de todo el 'if' es de tipo Unit.
-        return (() , TUnit)
+        nil <- nilExp
+        return (nil , TUnit)
 transExp(IfExp co th (Just el) p) = do
   (_ , condType) <- transExp co
   unless (equivTipo condType TBool) $ errorTiposMsg p "En la condición del if ->" condType TBool
@@ -256,73 +423,35 @@ transExp(IfExp co th (Just el) p) = do
   (_, ffType) <- transExp el
   C.unlessM (tiposIguales ttType ffType) $ errorTiposMsg p "En los branches." ttType ffType
   -- Si todo fue bien devolvemos el tipo de una de las branches.
-  return ((), ttType)
+  nil <- nilExp
+  return (nil, ttType)
 transExp(WhileExp co body p) = do
   (_ , coTy) <- transExp co
   unless (equivTipo coTy TBool) $ errorTiposMsg p "Error en la condición del While" coTy TBool
   (_ , boTy) <- transExp body
   unless (equivTipo boTy TUnit) $ errorTiposMsg p "Error en el cuerpo del While" boTy TBool
-  return ((), TUnit)
-transExp(ForExp nv mb lo hi bo p) = error "Completar" -- Completar
+  nil <- nilExp
+  return (nil, TUnit)
+transExp(ForExp nv mb lo hi bo p) = -- Hack que da el analisis semántico, no es realmente la forma de generar codigo intermedio
+  transDecs [(VarDec nv mb Nothing lo p)] (transExp bo)
 transExp(LetExp dcs body p) = transDecs dcs (transExp body)
-transExp(BreakExp p) = return ((), TUnit)
-transExp(ArrayExp sn cant init p) = error "Completar" -- Completar
+transExp(BreakExp p) =
+  do nil <- nilExp
+     return (nil, TUnit)
+transExp(ArrayExp sn cant init p) = do -- Completar
+  tipoUsado <- getTipoT sn
+  case tipoUsado of
+    TArray t u -> do
+      (_, tipoCant) <- transExp cant
+      (_, tipoInit) <- transExp init
+      cantEntera <- tiposIguales tipoCant (TInt RO)
+      tipoValido <- tiposIguales tipoInit t
+      nil <- nilExp
+      if (cantEntera && tipoValido)
+        then return (nil,TArray t u)
+        else derror $ pack ("Arreglo mal declarado, linea " ++ show p)
+    _ -> derror $ pack "Se declara un array de un tipo no array"
+  
 
 
--- Un ejemplo de estado que alcanzaría para realizar todas la funciones es:
-data Estado = Est {vEnv :: M.Map Symbol EnvEntry, tEnv :: M.Map Symbol Tipo}
-    deriving Show
--- data EstadoG = G {vEnv :: [M.Map Symbol EnvEntry], tEnv :: [M.Map Symbol Tipo]}
---     deriving Show
---
--- Estado Inicial con los entornos
--- * int y string como tipos básicos. -> tEnv
--- * todas las funciones del *runtime* disponibles. -> vEnv
-initConf :: Estado
-initConf = Est
-           { tEnv = M.insert (pack "int") (TInt RW) (M.singleton (pack "string") TString)
-           , vEnv = M.fromList
-                    [(pack "print", Func (1,pack "print",[TString], TUnit, Runtime))
-                    ,(pack "flush", Func (1,pack "flush",[],TUnit, Runtime))
-                    ,(pack "getchar",Func (1,pack "getchar",[],TString,Runtime))
-                    ,(pack "ord",Func (1,pack "ord",[TString],TInt RW,Runtime))
-                    ,(pack "chr",Func (1,pack "chr",[TInt RW],TString,Runtime))
-                    ,(pack "size",Func (1,pack "size",[TString],TInt RW,Runtime))
-                    ,(pack "substring",Func (1,pack "substring",[TString,TInt RW, TInt RW],TString,Runtime))
-                    ,(pack "concat",Func (1,pack "concat",[TString,TString],TString,Runtime))
-                    ,(pack "not",Func (1,pack "not",[TBool],TBool,Runtime))
-                    ,(pack "exit",Func (1,pack "exit",[TInt RW],TUnit,Runtime))
-                    ]
-           }
-
--- Utilizando alguna especie de run de la monada definida, obtenemos algo así
-type Monada = ExceptT Symbol (StateT Estado StGen)
-  -- StateT Estado (ExceptT Symbol StGen)
-
-instance Demon Monada where
-  -- | 'throwE' de la mónada de excepciones.
-  derror =  throwE
-  -- TODO: Parte del estudiante
-  -- adder :: w a -> Symbol -> w a
-instance Manticore Monada where
-  -- | A modo de ejemplo esta es una opción de ejemplo de 'insertValV :: Symbol -> ValEntry -> w a -> w'
-    insertValV sym ventry m = do
-      -- | Guardamos el estado actual
-      oldEst <- get
-      -- | Insertamos la variable al entorno (sobrescribiéndolo)
-      put (oldEst{ vEnv = M.insert sym (Var ventry) (vEnv oldEst) })
-      -- | ejecutamos la computación que tomamos como argumentos una vez que expandimos el entorno
-      a <- m
-      -- | Volvemos a poner el entorno viejo
-      put oldEst
-      -- | retornamos el valor que resultó de ejecutar la monada en el entorno expandido.
-      return a
-    -- ugen :: w Unique
-    ugen = mkUnique
-  -- TODO: Parte del estudiante
-
-runMonada :: Monada ((), Tipo)-> StGen (Either Symbol ((), Tipo))
-runMonada =  flip evalStateT initConf . runExceptT
-
-runSeman :: Exp -> StGen (Either Symbol ((), Tipo))
-runSeman = runMonada . transExp
+runSeman = undefined

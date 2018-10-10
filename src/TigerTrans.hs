@@ -1,4 +1,6 @@
 {-# Language UndecidableInstances  #-}
+{-# Language FlexibleInstances  #-}
+{-# LANGUAGE GADTs #-}
 module TigerTrans where
 
 import qualified Control.Monad.State as ST
@@ -77,7 +79,8 @@ unEx (Cx cf) = do
             cf(t,f),
             Label f,
             Move (Temp r) (Const 0),
-            Label t])
+            Label t]
+        )
         (Temp r)
 
 
