@@ -6,9 +6,7 @@ import TigerUnique
 import TigerTrans
 import TigerFrame
 
--- | 'Externa' representa la idea si una función pertenece al /runtime/ o no.
-data Externa = Runtime | Propia
-    deriving Show
+
 
 --type FunEntry = (Unique, Label, [Tipo], Tipo, Externa) -- Entrega 1
 type FunEntry = (Level, Label, [Tipo], Tipo, Externa) --Entrega 2

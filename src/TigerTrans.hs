@@ -9,7 +9,6 @@ import qualified Prelude             as P (error)
 import qualified TigerAbs            as Abs
 import           TigerErrores
 import           TigerFrame          as F
-import           TigerSres           (Externa (..))
 import           TigerSymbol         as T
 import           TigerTemp
 import           TigerTree
@@ -27,6 +26,10 @@ type TransFrag = Frag
 
 -- | Tipo de datos representando si es un procedimiento o una función
 data IsProc = IsProc | IsFun
+
+-- | 'Externa' representa la idea si una función pertenece al /runtime/ o no.
+data Externa = Runtime | Propia
+    deriving Show
 
 -- | Empaquetadores de expresiones
 -- Esto pasa ya que la información de contexto, es decir, donde están cada

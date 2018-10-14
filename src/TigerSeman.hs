@@ -150,16 +150,17 @@ buscarM s ((s',t,_):xs) | s == s' = Just t
 -- El objetivo de esta función es obtener el tipo
 -- de la variable a la que se está __accediendo__.
 -- ** transVar :: (MemM w, Manticore w) => Var -> w (BExp, Tipo)
-transVar :: (Manticore w) => Var -> w ( BExp , Tipo)
+transVar :: (MemM w, Manticore w) => Var -> w ( BExp , Tipo)
 transVar (SimpleVar s)      = do t <- getTipoValV s -- Nota [1]
                                  nil <- nilExp
                                  return (nil, t)
 transVar (FieldVar v s)     = do (e, tBase) <- transVar v
                                  nil <- nilExp
                                  case tBase of 
-                                  TRecord fs u -> case buscarM s fs of
-                                                    Just t -> return (nil, t)
-                                                    Nothing -> derror $ pack  "No se encontró el campo."
+                                  TRecord fs u -> 
+                                    case buscarM s fs of
+                                      Just t -> return (nil, t)
+                                      Nothing -> derror $ pack  "No se encontró el campo."
                                   _ -> derror $ pack "No es un record"
 transVar (SubscriptVar v e) = do (e, tBase ) <- transVar v
                                  nil <- nilExp
@@ -265,19 +266,24 @@ fromTy _ = P.error "no debería haber una definición de tipos en los args..."
 -- | Tip: Capaz que se debería restringir el tipo de 'transDecs'.
 -- Tip2: Van a tener que pensar bien que hacen. Ver transExp (LetExp...)
 -- ** transDecs :: (MemM w, Manticore w) => [Dec] -> w a -> w a
-transDecs :: (Manticore w) => [Dec] -> w (BExp,Tipo) -> w (BExp,Tipo)
+transDecs :: (MemM w, Manticore w) => [Dec] -> w (BExp,Tipo) -> w (BExp,Tipo)
 transDecs ((VarDec nm escap t init p): xs) exp = do 
   nil <- nilExp
+  let escapa = if escap == Escapa then True else False
+  acceso <- allocLocal escapa
+  unique <- ugen
   (u, tipoExp) <- transExp init
   tipoDeclarado <- case t of
                     Just s -> getTipoT s
                     Nothing -> (return TUnit)
   iguales <- tiposIguales tipoExp tipoDeclarado
   if (tipoDeclarado == TUnit || iguales)
-  then do val <- transDecs xs (insertValV nm tipoExp exp)
+  then do val <- transDecs xs (insertValV nm (tipoExp, acceso, fromIntegral unique) exp)
           return val
   else derror $ pack "El tipo declarado no conicide con el de la expresión dada"
-transDecs ((TypeDec xs): xss)             exp = -- REVISAR COMPLETAMENTE ESTE CODIGO, ES UNA MUGRE. EN SERIO, MUGRE.
+transDecs ((TypeDec xs): xss)             exp = 
+  -- REVISAR COMPLETAMENTE ESTE CODIGO, ES UNA MUGRE. EN SERIO, MUGRE.
+  -- Lo único bueno es que el manejo de accesos y niveles no puede nunca estar mal...
   if (noBadLoops xs [])
   then do tys <- mapM preTy xs
           let sims = P.map fst tys
@@ -288,6 +294,7 @@ transDecs ((TypeDec xs): xss)             exp = -- REVISAR COMPLETAMENTE ESTE CO
 transDecs ((FunctionDec fs) : xs)          exp = do 
   let simbolos = P.map (\(simbolos,fields, tipo, expre, pos) -> simbolos) fs
   let expresiones = P.map (\(simbolos,fields, tipo, expre, pos) -> expre) fs
+  let nivelActual <- topLevel
   argEntries <- mapM (mapM mkArgEntries) $ P.map (\(simbolos,fields, tipo, expre, pos) -> fields) fs
   entries <- mapM mkFunEntry fs
   let expresionesTemporales = P.map 
@@ -295,11 +302,13 @@ transDecs ((FunctionDec fs) : xs)          exp = do
                                expresiones
   tlist <- mapM (\(expresionTemporal,argList) ->
                         P.foldr 
-                          (\(s,t) expresion -> insertValV s t expresion) 
+                          do
+                            nuevoNivel <-  
+                            (\(s,t) expresion -> insertValV s t expresion) 
                           expresionTemporal
                           argList
-                     )
-                     (zip expresionesTemporales argEntries)
+                )
+                (zip expresionesTemporales argEntries)
   let tiposSemanticos = P.map snd tlist
   tipaList <- mapM 
                 (\(tipoDeclarado, tipoSemantico) -> tiposIguales tipoDeclarado tipoSemantico)
@@ -311,8 +320,7 @@ transDecs ((FunctionDec fs) : xs)          exp = do
   nil <- nilExp
   return (nil, snd $ head tlist)
 
-
-mkArgEntries :: (Manticore w) => (Symbol, Escapa, Ty) -> w (Symbol, Tipo)
+mkArgEntries :: (MemM w, Manticore w) => (Symbol, Escapa, Ty) -> w (Symbol, Tipo)
 mkArgEntries (s,e,t) = do
   tipo <- fromTy t
   return (s,tipo)
@@ -320,7 +328,7 @@ mkArgEntries (s,e,t) = do
 getTipoEntry :: (Unique, Label, [Tipo], Tipo, Externa) -> Tipo
 getTipoEntry (u,l,ts,t,e) = t
 
-mkFunEntry :: (Manticore w) => (Symbol ,[(Symbol, Escapa, Ty)], Maybe Symbol, Exp, Pos) -> w (Symbol, FunEntry)
+mkFunEntry :: (MemM w, Manticore w) => (Symbol ,[(Symbol, Escapa, Ty)], Maybe Symbol, Exp, Pos) -> w (Symbol, FunEntry)
 mkFunEntry (nombre, args, ret, cuerpo, pos) = do 
   unique <- ugen
   let label = pack (unpack nombre ++ show unique)
@@ -331,7 +339,7 @@ mkFunEntry (nombre, args, ret, cuerpo, pos) = do
   return (nombre, (unique, label, tipos, tipo, Propia))
 
 -- ** transExp :: (MemM w, Manticore w) => Exp -> w (BExp , Tipo)
-transExp :: (Manticore w) => Exp -> w (BExp , Tipo)
+transExp :: (MemM w, Manticore w) => Exp -> w (BExp , Tipo)
 transExp (VarExp v p) = addpos (transVar v) p
 transExp UnitExp{} = do nil <- nilExp
                         return (nil, TUnit) -- ** fmap (,TUnit) unitExp
