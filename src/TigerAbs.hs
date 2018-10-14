@@ -13,7 +13,7 @@ data Pos = Simple {line::Int, col :: Int} | Range Pos Pos
 
 -- | 'Escapa' representa la idea si una variable /escapa/ o no... Ver en el libro
 data Escapa = Escapa | NoEscapa
-    deriving (Show, Typeable, Data)
+    deriving (Eq, Show, Typeable, Data)
 
 posToLabel :: Pos -> String
 posToLabel (Simple l r) = show l ++ '.': show r
