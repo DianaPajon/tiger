@@ -294,22 +294,25 @@ transDecs ((TypeDec xs): xss)             exp =
 transDecs ((FunctionDec fs) : xs)          exp = do 
   funEntries <- mapM mkFunEntry fs
   funs <- mapM (transFun funEntries) fs
-  transDecs xs (P.foldr (\(s,fentry) e -> insertFunV s fentry e)  exp funEntries)
+  transDecs xs (P.foldr (\(s,fentry) e -> insertFunV s fentry e)  exp (actualizar funEntries funs))
+    where actualizar [] xs = []
+          actualizar ((s,(l,a,b,c,d)):es) ((ci,t,l'):ts) = (s,(l',a,b,c,d)) : actualizar es ts
 
 type FunDec = (Symbol ,[(Symbol, Escapa, Ty)], Maybe Symbol, Exp, Pos)
 
-transFun :: (MemM w, Manticore w) => [(Symbol, FunEntry)] -> FunDec -> w (BExp, Tipo)
+transFun :: (MemM w, Manticore w) => [(Symbol, FunEntry)] -> FunDec -> w (BExp, Tipo, Level)
 transFun fs (nombre, args, mt, body, _) = do 
   pushLevel (nivelFuncion fs nombre)
   args <- mapM mkArgEntry args
   (intermedio, tipo) <- P.foldr (\(s,argentry) e  -> insertValV s argentry e) expresionConFuns args
+  levelConArgs <- topLevel
   popLevel
   case mt of 
-    Nothing -> return (intermedio,TUnit)
+    Nothing -> return (intermedio,TUnit,levelConArgs)
     Just t -> do tipoEsperado <- getTipoT t
                  iguales <- tiposIguales tipoEsperado tipo
                  if iguales
-                  then return (intermedio, tipo)
+                  then return (intermedio, tipo, levelConArgs)
                   else derror $ pack "La función no tipa"
     where 
       nivelFuncion ((nombre, (level,_,_,_,_)):funs) s = if s == nombre then level else nivelFuncion funs s
