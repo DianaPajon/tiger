@@ -151,7 +151,7 @@ buscarM s ((s',t,_):xs) | s == s' = Just t
 -- de la variable a la que se está __accediendo__.
 -- ** transVar :: (MemM w, Manticore w) => Var -> w (BExp, Tipo)
 transVar :: (MemM w, Manticore w) => Var -> w ( BExp , Tipo)
-transVar (SimpleVar s)      = do t <- getTipoValV s -- Nota [1]
+transVar (SimpleVar s)      = do (t,a,i) <- getTipoValV s -- Nota [1]
                                  nil <- nilExp
                                  return (nil, t)
 transVar (FieldVar v s)     = do (e, tBase) <- transVar v
@@ -292,51 +292,52 @@ transDecs ((TypeDec xs): xss)             exp =
           transDecs xss (P.foldr (\(s,t) e -> insertTipoT s t e) (exp) decs)
   else derror $ pack "Tipos recursivos mal declarados"
 transDecs ((FunctionDec fs) : xs)          exp = do 
-  let simbolos = P.map (\(simbolos,fields, tipo, expre, pos) -> simbolos) fs
-  let expresiones = P.map (\(simbolos,fields, tipo, expre, pos) -> expre) fs
-  let nivelActual <- topLevel
-  argEntries <- mapM (mapM mkArgEntries) $ P.map (\(simbolos,fields, tipo, expre, pos) -> fields) fs
-  entries <- mapM mkFunEntry fs
-  let expresionesTemporales = P.map 
-                               (\expresion -> P.foldr (\(s,e) exp -> insertFunV s e exp) (transExp expresion) entries) 
-                               expresiones
-  tlist <- mapM (\(expresionTemporal,argList) ->
-                        P.foldr 
-                          do
-                            nuevoNivel <-  
-                            (\(s,t) expresion -> insertValV s t expresion) 
-                          expresionTemporal
-                          argList
-                )
-                (zip expresionesTemporales argEntries)
-  let tiposSemanticos = P.map snd tlist
-  tipaList <- mapM 
-                (\(tipoDeclarado, tipoSemantico) -> tiposIguales tipoDeclarado tipoSemantico)
-                (zip (P.map getTipoEntry (P.map snd entries)) tiposSemanticos)
-  let tipa = P.foldr (&&) True tipaList
-  if tipa
-    then transDecs xs (P.foldr (\(s,funentry) e -> insertFunV s funentry e) (exp) entries)
-    else derror $ pack "Las funciones no tipan" --Ver como mejorar.
-  nil <- nilExp
-  return (nil, snd $ head tlist)
+  funEntries <- mapM mkFunEntry fs
+  funs <- mapM (transFun funEntries) fs
+  transDecs xs (P.foldr (\(s,fentry) e -> insertFunV s fentry e)  exp funEntries)
 
-mkArgEntries :: (MemM w, Manticore w) => (Symbol, Escapa, Ty) -> w (Symbol, Tipo)
-mkArgEntries (s,e,t) = do
+type FunDec = (Symbol ,[(Symbol, Escapa, Ty)], Maybe Symbol, Exp, Pos)
+
+transFun :: (MemM w, Manticore w) => [(Symbol, FunEntry)] -> FunDec -> w (BExp, Tipo)
+transFun fs (nombre, args, mt, body, _) = do 
+  pushLevel (nivelFuncion fs nombre)
+  args <- mapM mkArgEntry args
+  (intermedio, tipo) <- P.foldr (\(s,argentry) e  -> insertValV s argentry e) expresionConFuns args
+  popLevel
+  case mt of 
+    Nothing -> return (intermedio,TUnit)
+    Just t -> do tipoEsperado <- getTipoT t
+                 iguales <- tiposIguales tipoEsperado tipo
+                 if iguales
+                  then return (intermedio, tipo)
+                  else derror $ pack "La función no tipa"
+    where 
+      nivelFuncion ((nombre, (level,_,_,_,_)):funs) s = if s == nombre then level else nivelFuncion funs s
+      expresionConFuns = P.foldr (\(s,fentry) e -> insertFunV s fentry e)  (transExp body) fs
+
+
+mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> w (Symbol, ValEntry)
+mkArgEntry (s,e,t) = do
+  acceso <- allocArg (e == Escapa)
   tipo <- fromTy t
-  return (s,tipo)
+  unique <- ugen
+  return (s,(tipo, acceso, fromIntegral unique))
+
+mkFunEntry :: (MemM w, Manticore w) => FunDec -> w (Symbol, FunEntry)
+mkFunEntry (nombre,args,mtipo,cuerpo,pos) = do 
+  nivelPadre <- topLevel
+  let formals = True : (P.map (\(a,b,c) -> b == Escapa) args) -- Agrego el static link
+  tipos <- mapM transTy (P.map (\(a,b,c) -> c) args)
+  label <- newLabel
+  tipo <- case mtipo of
+    Nothing -> return TUnit
+    Just s -> getTipoT s
+  let nivelFuncion = newLevel nivelPadre label formals
+  return (nombre,(nivelFuncion, label, tipos, tipo, Propia))
+ 
 
 getTipoEntry :: (Unique, Label, [Tipo], Tipo, Externa) -> Tipo
 getTipoEntry (u,l,ts,t,e) = t
-
-mkFunEntry :: (MemM w, Manticore w) => (Symbol ,[(Symbol, Escapa, Ty)], Maybe Symbol, Exp, Pos) -> w (Symbol, FunEntry)
-mkFunEntry (nombre, args, ret, cuerpo, pos) = do 
-  unique <- ugen
-  let label = pack (unpack nombre ++ show unique)
-  tipos <- mapM (\(s,e,t) -> transTy t) args
-  tipo <- case ret of
-          Nothing -> return TUnit
-          Just t -> getTipoT t
-  return (nombre, (unique, label, tipos, tipo, Propia))
 
 -- ** transExp :: (MemM w, Manticore w) => Exp -> w (BExp , Tipo)
 transExp :: (MemM w, Manticore w) => Exp -> w (BExp , Tipo)

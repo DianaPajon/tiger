@@ -124,7 +124,7 @@ setFrame _ _               = P.error "setFrame"
 
 newLevel :: Level -> Symbol -> [Bool] -> Level
 newLevel [] s bs                 = [MkLI (newFrame s bs) 0]
-newLevel ls@(MkLI _ lvl :_) s bs = MkLI (newFrame s bs) (lvl+1) : ls
+newLevel ls@(MkLI _ lvl :_) s bs = (MkLI (newFrame s bs) (lvl+1)) : ls
 
 getParent :: Level -> Level
 getParent []     = P.error "No fuimos del outermost level"
