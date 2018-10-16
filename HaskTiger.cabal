@@ -39,6 +39,7 @@ library
         -- Experimental
         , TigerInterp
         , TigerQQ
+        , TigerState
       -- Tercer entrega. So vo.
   build-depends:       base
                        , containers

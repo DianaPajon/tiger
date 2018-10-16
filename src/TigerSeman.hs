@@ -269,8 +269,7 @@ fromTy _ = P.error "no debería haber una definición de tipos en los args..."
 transDecs :: (MemM w, Manticore w) => [Dec] -> w (BExp,Tipo) -> w (BExp,Tipo)
 transDecs ((VarDec nm escap t init p): xs) exp = do 
   nil <- nilExp
-  let escapa = if escap == Escapa then True else False
-  acceso <- allocLocal escapa
+  acceso <- allocLocal (escap == Escapa)
   unique <- ugen
   (u, tipoExp) <- transExp init
   tipoDeclarado <- case t of
