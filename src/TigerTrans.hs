@@ -266,7 +266,16 @@ instance (MemM w) => IrGen w where
                   IsFun  -> Move (Temp rv) <$> unEx bd
         procEntryExit lvl (Nx body)
         return $ Ex $ Const 0
-    simpleVar acc level = P.error "COMPLETAR"
+    simpleVar acc level = case acc of
+        InReg r -> return $ Ex $ Mem (Temp r)
+        InFrame o -> do
+            nivelActual <- getActualLevel
+            return $ Ex $ Mem (Binop Plus (Const o ) (arbolStaticLink nivelActual level))
+            where
+                arbolStaticLink nivelActual level = 
+                    if nivelActual <= level
+                    then (Temp fp) 
+                    else Mem (arbolStaticLink (nivelActual - 1) level)
     varDec acc = do { i <- getActualLevel; simpleVar acc i}
     unitExp = return $ Ex (Const 0)
     nilExp = return $ Ex (Const 0)

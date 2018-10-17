@@ -270,15 +270,14 @@ transDecs :: (MemM w, Manticore w) => [Dec] -> w (BExp,Tipo) -> w (BExp,Tipo)
 transDecs ((VarDec nm escap t init p): xs) exp = do 
   nil <- nilExp
   acceso <- allocLocal (escap == Escapa)
-  unique <- ugen
+  nivel <- getActualLevel
   (u, tipoExp) <- transExp init
   tipoDeclarado <- case t of
                     Just s -> getTipoT s
                     Nothing -> (return TUnit)
   iguales <- tiposIguales tipoExp tipoDeclarado
   if (tipoDeclarado == TUnit || iguales)
-  then do val <- transDecs xs (insertValV nm (tipoExp, acceso, fromIntegral unique) exp)
-          return val
+  then transDecs xs (insertValV nm (tipoExp, acceso, fromIntegral nivel) exp)
   else derror $ pack "El tipo declarado no conicide con el de la expresión dada"
 transDecs ((TypeDec xs): xss)             exp = 
   -- REVISAR COMPLETAMENTE ESTE CODIGO, ES UNA MUGRE. EN SERIO, MUGRE.
