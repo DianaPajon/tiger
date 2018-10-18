@@ -21,9 +21,6 @@ import           Data.Ord            hiding (EQ, GT, LT)
 
 import           Debug.Trace
 
--- | Reexportamos el tipo de Fragmentos provenientes de TigerTrans.
-type TransFrag = Frag
-
 -- | Tipo de datos representando si es un procedimiento o una función
 data IsProc = IsProc | IsFun
 
@@ -271,7 +268,7 @@ instance (MemM w) => IrGen w where
         InFrame o -> do
             nivelActual <- getActualLevel
             return $ Ex $ Mem (Binop Plus (Const o ) (arbolStaticLink nivelActual level))
-            where
+            where --Supongo que el static link se ubica siempre a nivel de FP. Por el momento.
                 arbolStaticLink nivelActual level = 
                     if nivelActual <= level
                     then (Temp fp) 
@@ -280,7 +277,10 @@ instance (MemM w) => IrGen w where
     unitExp = return $ Ex (Const 0)
     nilExp = return $ Ex (Const 0)
     intExp i = return $ Ex (Const i)
-    fieldVar be i = P.error "COMPLETAR"
+    fieldVar be i = do
+        baseVar <- unEx be
+        let offset = i * wSz
+        return $ Ex $  Mem (Binop Plus baseVar (Const offset))
     -- subscriptVar :: BExp -> BExp -> w BExp
     subscriptVar var ind = do
         evar <- unEx var
