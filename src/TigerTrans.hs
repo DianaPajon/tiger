@@ -277,10 +277,10 @@ instance (MemM w) => IrGen w where
     unitExp = return $ Ex (Const 0)
     nilExp = return $ Ex (Const 0)
     intExp i = return $ Ex (Const i)
-    fieldVar be i = do
-        baseVar <- unEx be
+    fieldVar be i = do --Ponele que si. No veo porque no sería así. Puede ser calculado en tiempo de compilación.
+        baseVar <- unEx be --y no se va a a llamar con un indice que no exista.
         let offset = i * wSz
-        return $ Ex $  Mem (Binop Plus baseVar (Const offset))
+        return $ Ex $  Mem (Binop Plus baseVar (Const offset)) 
     -- subscriptVar :: BExp -> BExp -> w BExp
     subscriptVar var ind = do
         evar <- unEx var
@@ -294,7 +294,21 @@ instance (MemM w) => IrGen w where
                         ,ExpS $ externalCall "_checkIndex" [Temp tvar, Temp tind]])
                 (Mem $ Binop Plus (Temp tvar) (Binop Mul (Temp tind) (Const wSz)))
     -- recordExp :: [(BExp,Int)]  -> w BExp
-    recordExp flds = P.error "COMPLETAR"
+    recordExp flds = do --No tendría sentido una record expression sin todas sus componentes. Mi tiger no te deja.
+        let size = Const $ List.length flds
+        let init = Const 0
+        t <- newTemp
+        movs <- mkMoves flds t
+        return $ Ex $ Eseq (seq $
+                [ExpS $ externalCall "_allocArray" [size,init]
+                , Move (Temp t) (Temp rv)
+                ] ++ movs ) (Temp t)
+                where
+                    mkMoves [] base = return []
+                    mkMoves ((exp,i):ms) base = do 
+                        expre <- unEx exp
+                        masMoves <- mkMoves ms base
+                        return $ (Move (Mem (Binop Plus (Temp base) (Const (i * wSz)))) expre) : masMoves
     -- callExp :: Label -> Externa -> Bool -> Level -> [BExp] -> w BExp
     callExp name external isproc lvl args = P.error "COMPLETAR"
     -- letExp :: [BExp] -> BExp -> w BExp
@@ -356,7 +370,39 @@ instance (MemM w) => IrGen w where
                     , Label done]
             _ -> internal $ pack "no label in salida"
     -- forExp :: BExp -> BExp -> BExp -> BExp -> w BExp
-    forExp lo hi var body = P.error "COMPLETAR"
+    forExp lo hi var body = do 
+        --Pregunta a resolver... ¿Cuando se define var?. ¿Cuando se agrega al entorno?.
+        --La estoy tratando como una variable que existia de antes, antes de ejecutar este código.
+        --DEBERÌA haberse ejecutado el codigo que le da entidad. O no, creo que la naturaleza de esto permite ser laxa.
+
+        --La expresion que inicializa el while.
+        loExp <- unEx lo
+        --El valor final de la variable
+        hiExp <- unEx hi
+        --Esta variable de alguna forma tiene que estar en el entorno (se encarga SEMAN). Es una RO Int
+        var <- unEx var
+        --El punto donde se encuentra el codigo
+        bodyLabel <- newLabel
+        --El punto donde se incrementa la variable
+        increment <- newLabel
+        --El codigo del bucle
+        body <- unNx body
+        lastM <- topSalida
+        case lastM of
+            Just done -> --Hay un prewhile y postwhile. Porque es un bucle también.
+                return $ Nx $ seq
+                    [
+                        Move (Mem var) loExp,
+                        CJump LE var hiExp  bodyLabel  done,
+                        Label bodyLabel,
+                        body, 
+                        CJump EQ var hiExp  done  increment, --por si maxint
+                        Label increment,
+                        Move var (Binop Plus (Mem var) (Const 1)),
+                        Jump (Name bodyLabel) bodyLabel,
+                        Label done 
+                    ]
+            _ -> internal $ pack "no label in salida"
     -- ifThenExp :: BExp -> BExp -> w BExp
     ifThenExp cond bod = P.error "COMPLETAR"
     -- ifThenElseExp :: BExp -> BExp -> BExp -> w BExp
