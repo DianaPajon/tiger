@@ -321,7 +321,11 @@ instance (MemM w) => IrGen w where
         return $ Ex $ Eseq (seq bes) be
     -- breakExp :: w BExp
     -- | JA! No está implementado
-    breakExp = P.error "COMPLETAR"
+    breakExp = do
+        salida <- topSalida
+        case salida of
+            Just done -> return $ Nx $ Jump (Name done) done
+            _ -> internal $ pack "No label in salida"
     -- seqExp :: [BExp] -> w BExp
     seqExp [] = return $ Nx $ ExpS $ Const 0
     seqExp bes = do
@@ -404,11 +408,40 @@ instance (MemM w) => IrGen w where
                     ]
             _ -> internal $ pack "no label in salida"
     -- ifThenExp :: BExp -> BExp -> w BExp
-    ifThenExp cond bod = P.error "COMPLETAR"
+    ifThenExp cond bod = do
+        condicion <- unCx cond
+        cuerpo <- unNx bod
+        labelSi <- newLabel
+        labelNo <- newLabel
+        return $ Nx $ seq 
+            [
+                condicion (labelSi, labelNo),
+                Label labelSi,
+                cuerpo,
+                Label labelNo
+            ]
     -- ifThenElseExp :: BExp -> BExp -> BExp -> w BExp
-    ifThenElseExp cond bod els = P.error "COMPLETAR"
+    ifThenElseExp cond bod els = do
+        condicion <- unCx cond
+        cuerpoThen <- unEx bod
+        cuerpoElse <- unEx els
+        labelThen <- newLabel
+        labelElse <- newLabel
+        jumpElse <- newLabel
+        temporal <- newTemp
+        return $ Ex $ Eseq (
+            seq [
+                condicion (labelThen, labelElse),
+                Label labelThen, --El cuerpo del then se tiene que ejecutar SOLAMENTE si es cierta la cond.
+                Move (Temp temporal) cuerpoThen,
+                Jump (Name jumpElse) jumpElse,
+                Label labelElse,
+                Move (Temp temporal) cuerpoElse,
+                Label jumpElse
+            ])
+            (Temp temporal)
     -- ifThenElseExpUnit :: BExp -> BExp -> BExp -> w BExp
-    ifThenElseExpUnit _ _ _ = P.error "COmpletaR?"
+    ifThenElseExpUnit _ _ _ = P.error "COmpletaR?" --Optimizacion, se puede usar el anterior.
     -- assignExp :: BExp -> BExp -> w BExp
     assignExp cvar cinit = do
         cvara <- unEx cvar
@@ -419,10 +452,41 @@ instance (MemM w) => IrGen w where
                 return $ Nx $ seq [Move (Temp t) cin, Move cvara (Temp t)]
             _ -> return $ Nx $ Move cvara cin
     -- binOpIntExp :: BExp -> Abs.Oper -> BExp -> w BExp
-    binOpIntExp le op re = P.error "COMPLETAR"
+    binOpIntExp le op re = do
+        termIzq <- unEx le
+        termDer <- unEx re
+        case op of
+            Abs.PlusOp -> return $ Ex $ Binop Plus termIzq termDer
+            Abs.MinusOp -> return $ Ex $ Binop Minus termIzq termDer
+            Abs.TimesOp -> return $ Ex $ Binop Mul termIzq termDer
+            Abs.DivideOp -> return $ Ex $ Binop Div termIzq termDer
+            Abs.EqOp ->  mkCx EQ termIzq termDer
+            Abs.NeqOp -> mkCx NE termIzq termDer
+            Abs.LtOp -> mkCx LT termIzq termDer
+            Abs.LeOp -> mkCx LE termIzq termDer 
+            Abs.GtOp -> mkCx GT termIzq termDer
+            Abs.GeOp -> mkCx GE termIzq termDer
+        where 
+            mkCx oper izq der = return $ Cx $ (\(trueLabel, falseLabel) -> 
+                    CJump oper izq der trueLabel falseLabel
+                )
     -- binOpStrExp :: BExp -> Abs.Oper -> BExp -> w BExp
-    binOpStrExp strl op strr = P.error "COMPLETAR"
-    binOpIntRelExp op strr = P.error "COMPLETAR"
+    binOpStrExp strl op strr = do
+        termIzq <- unEx strl
+        termDer <- unEx strr
+        case op of
+            Abs.EqOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strEQ" termIzq termDer t f)
+            Abs.NeqOp -> return $ Cx $ (\(t,f) ->  mkStrFun "_strEQ" termIzq termDer f t)
+            Abs.LtOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strLT" termIzq termDer t f)
+            Abs.LeOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strLE" termIzq termDer t f)
+            Abs.GtOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strLT" termDer termIzq t f)
+            Abs.GeOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strLE" termDer termIzq t f)
+        where mkStrFun fun termIzq termDer labelTrue labelFalse = seq 
+                    [
+                        ExpS $ externalCall fun [termIzq,termDer],
+                        CJump EQ (Temp rv) (Const 1) labelTrue labelFalse
+                    ]
+    binOpIntRelExp op strr = P.error "COMPLETAR" --TODO: Queda pendiente, cuando empieza a llenar transExp lo sabré.
     -- arrayExp :: BExp -> BExp -> w BExp
     arrayExp size init = do
         sz <- unEx size
