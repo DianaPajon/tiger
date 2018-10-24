@@ -1,4 +1,4 @@
 -Repasar el código intermedio de declaración y llamadas a función. Escribir el código.
--Rellenar el código intermedio en transExp
--Revisar transExp, sobretodo la traducción de tipos.
+-Terminar de rellenar el código intermedio en transExp. Ver como maneja errores e intentar copiarlo.
+-Revisar transExp, sobretodo la traducción de tipos. Además, ver entre transExp y translate donde va la creación de levels.
 -Revisar los tests y hacer un andamiaje para poder avanzar testeando.

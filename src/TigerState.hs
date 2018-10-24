@@ -89,8 +89,9 @@ instance Demon TigerState where
     --adder :: w a -> Symbol -> w a
     adder m s = do estado <- get
                    case (runStateT m) estado of
-                        Left err -> lift (Left ((Internal s):err))
-                        Right _ -> lift (Left [Internal s])
+                        Left err -> lift $ Left ((Internal s):err)
+                        Right x -> do put (snd x) --TODO: Esto tipa porque asi lo armé, pero no lo entiendo, revisar.
+                                      return (fst x)
 --Función auxiliar, similar a withState, solo que repone el estado anterior al terminar.
 withStateOnce :: Monad m => (s -> s) -> StateT s m a -> StateT s m a
 withStateOnce f m = do sta <- get

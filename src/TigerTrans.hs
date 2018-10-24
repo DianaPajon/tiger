@@ -23,7 +23,7 @@ import           Debug.Trace
 
 -- | Tipo de datos representando si es un procedimiento o una función
 data IsProc = IsProc | IsFun
-
+    deriving Eq
 -- | 'Externa' representa la idea si una función pertenece al /runtime/ o no.
 data Externa = Runtime | Propia
     deriving Show
@@ -310,7 +310,16 @@ instance (MemM w) => IrGen w where
                         masMoves <- mkMoves ms base
                         return $ (Move (Mem (Binop Plus (Temp base) (Const (i * wSz)))) expre) : masMoves
     -- callExp :: Label -> Externa -> Bool -> Level -> [BExp] -> w BExp
-    callExp name external isproc lvl args = P.error "COMPLETAR"
+    callExp name external isproc lvl args = do
+        let callMethod = case external of
+                Runtime -> externalCall (T.unpack name) --Podría obviarse, pero por limpieza lo dejo.
+                Propia -> Call (Name name)
+        -- Por ahora ignoro el nivel, y pongo el SL como FP.
+        args' <- mapM unEx (Ex (Temp fp) : args)
+        if isproc == IsProc
+        then return $ Nx $ ExpS $ callMethod args'
+        else return $ Ex $ Eseq (ExpS $ callMethod args') (Temp rv)
+        
     -- letExp :: [BExp] -> BExp -> w BExp
     letExp [] e = do -- Puede parecer al dope, pero no...
             e' <- unEx e
@@ -378,7 +387,6 @@ instance (MemM w) => IrGen w where
         --Pregunta a resolver... ¿Cuando se define var?. ¿Cuando se agrega al entorno?.
         --La estoy tratando como una variable que existia de antes, antes de ejecutar este código.
         --DEBERÌA haberse ejecutado el codigo que le da entidad. O no, creo que la naturaleza de esto permite ser laxa.
-
         --La expresion que inicializa el while.
         loExp <- unEx lo
         --El valor final de la variable
@@ -460,16 +468,6 @@ instance (MemM w) => IrGen w where
             Abs.MinusOp -> return $ Ex $ Binop Minus termIzq termDer
             Abs.TimesOp -> return $ Ex $ Binop Mul termIzq termDer
             Abs.DivideOp -> return $ Ex $ Binop Div termIzq termDer
-            Abs.EqOp ->  mkCx EQ termIzq termDer
-            Abs.NeqOp -> mkCx NE termIzq termDer
-            Abs.LtOp -> mkCx LT termIzq termDer
-            Abs.LeOp -> mkCx LE termIzq termDer 
-            Abs.GtOp -> mkCx GT termIzq termDer
-            Abs.GeOp -> mkCx GE termIzq termDer
-        where 
-            mkCx oper izq der = return $ Cx $ (\(trueLabel, falseLabel) -> 
-                    CJump oper izq der trueLabel falseLabel
-                )
     -- binOpStrExp :: BExp -> Abs.Oper -> BExp -> w BExp
     binOpStrExp strl op strr = do
         termIzq <- unEx strl
@@ -486,7 +484,20 @@ instance (MemM w) => IrGen w where
                         ExpS $ externalCall fun [termIzq,termDer],
                         CJump EQ (Temp rv) (Const 1) labelTrue labelFalse
                     ]
-    binOpIntRelExp op strr = P.error "COMPLETAR" --TODO: Queda pendiente, cuando empieza a llenar transExp lo sabré.
+    binOpIntRelExp le op re = do
+        termIzq <- unEx le
+        termDer <- unEx re
+        case op of
+            Abs.EqOp ->  mkCx EQ termIzq termDer
+            Abs.NeqOp -> mkCx NE termIzq termDer
+            Abs.LtOp -> mkCx LT termIzq termDer
+            Abs.LeOp -> mkCx LE termIzq termDer 
+            Abs.GtOp -> mkCx GT termIzq termDer
+            Abs.GeOp -> mkCx GE termIzq termDer
+        where 
+            mkCx oper izq der = return $ Cx $ (\(trueLabel, falseLabel) -> 
+                    CJump oper izq der trueLabel falseLabel
+                )
     -- arrayExp :: BExp -> BExp -> w BExp
     arrayExp size init = do
         sz <- unEx size
