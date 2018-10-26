@@ -282,20 +282,24 @@ fromTy _ = P.error "no debería haber una definición de tipos en los args..."
 -- | Tip: Capaz que se debería restringir el tipo de 'transDecs'.
 -- Tip2: Van a tener que pensar bien que hacen. Ver transExp (LetExp...)
 -- ** transDecs :: (MemM w, Manticore w) => [Dec] -> w a -> w a
-transDecs :: (MemM w, Manticore w) => [Dec] -> w (BExp,Tipo) -> w (BExp,Tipo)
-transDecs ((VarDec nm escap t init p): xs) exp = do 
+transDecs' :: (MemM w, Manticore w) => [Dec] -> w (BExp,Tipo) -> w ((BExp,Tipo),[BExp])
+transDecs' ((VarDec nm escap t init p): xs) exp = do 
   nil <- nilExp
   acceso <- allocLocal (escap == Escapa)
   nivel <- getActualLevel
-  (u, tipoExp) <- transExp init
+  variable <- varDec acceso
+  (inicializacion, tipoExp) <- transExp init
+  asignacion <- assignExp variable inicializacion
   tipoDeclarado <- case t of
                     Just s -> getTipoT s
                     Nothing -> (return TUnit)
   iguales <- tiposIguales tipoExp tipoDeclarado
   if (tipoDeclarado == TUnit || iguales)
-  then transDecs xs (insertValV nm (tipoExp, acceso, fromIntegral nivel) exp)
+  then do 
+        (cuerpo, inits) <- transDecs' xs (insertValV nm (tipoExp, acceso, fromIntegral nivel) exp)
+        return (cuerpo, asignacion : inits)
   else derror $ pack "El tipo declarado no conicide con el de la expresión dada"
-transDecs ((TypeDec xs): xss)             exp = 
+transDecs' ((TypeDec xs): xss)             exp = 
   -- REVISAR COMPLETAMENTE ESTE CODIGO, ES UNA MUGRE. EN SERIO, MUGRE.
   -- Lo único bueno es que el manejo de accesos y niveles no puede nunca estar mal...
   if (noBadLoops xs [])
@@ -303,22 +307,34 @@ transDecs ((TypeDec xs): xss)             exp =
           let sims = P.map fst tys
           clean <- cleanTys sims tys
           let decs = P.map (\(s,t) ->(s,arreglarLazy t clean)) clean
-          transDecs xss (P.foldr (\(s,t) e -> insertTipoT s t e) (exp) decs)
+          transDecs' xss (P.foldr (\(s,t) e -> insertTipoT s t e) (exp) decs)
   else derror $ pack "Tipos recursivos mal declarados"
-transDecs ((FunctionDec fs) : xs)          exp = do 
+transDecs' ((FunctionDec fs) : xs)          exp = do 
   funEntries <- mapM mkFunEntry fs
-  funs <- mapM (transFun funEntries) fs
-  transDecs xs (P.foldr (\(s,fentry) e -> insertFunV s fentry e)  exp (actualizar funEntries funs))
+  funs <- mapM (transFun funEntries) fs --Ignoro los cuerpos de las definiciones por ahora.
+  transDecs' xs (P.foldr (\(s,fentry) e -> insertFunV s fentry e)  exp (actualizar funEntries funs))
     where actualizar [] xs = []
           actualizar ((s,(l,a,b,c,d)):es) ((ci,t,l'):ts) = (s,(l',a,b,c,d)) : actualizar es ts
+transDecs' [] exp = do
+  cuerpo <- exp
+  return (cuerpo, [])
+
+transDecs :: (MemM w, Manticore w) => [Dec] -> w (BExp,Tipo) -> w (BExp,Tipo)
+transDecs decs cuerpo = do
+  ((cuerpo,tipo), asignaciones) <- transDecs' decs cuerpo
+  cuerpoLet <- letExp asignaciones cuerpo
+  return (cuerpoLet, tipo)
 
 type FunDec = (Symbol ,[(Symbol, Escapa, Ty)], Maybe Symbol, Exp, Pos)
 
 transFun :: (MemM w, Manticore w) => [(Symbol, FunEntry)] -> FunDec -> w (BExp, Tipo, Level)
 transFun fs (nombre, args, mt, body, _) = do 
-  pushLevel (nivelFuncion fs nombre)
+  let nivelFun = nivelFuncion fs nombre
+  pushLevel nivelFun
   args <- mapM mkArgEntry args
-  (intermedio , tipo) <- P.foldr (\(s,argentry) e  -> insertValV s argentry e) expresionConFuns args
+  (cuerpo , tipo) <- P.foldr (\(s,argentry) e  -> insertValV s argentry e) expresionConFuns args
+  let isproc = if mt == Nothing then IsProc else IsFun
+  intermedio <- envFunctionDec nivelFun (functionDec cuerpo nivelFun isproc)
   levelConArgs <- topLevel
   popLevel
   case mt of 
@@ -480,7 +496,7 @@ transExp(ForExp nv mb lo hi bo p) =
       posWhileforExp
       return (for, TUnit)
     )
-transExp(LetExp dcs body p) = transDecs dcs (transExp body) --TODO: Revisar
+transExp(LetExp dcs body p) = transDecs dcs (transExp body)
 transExp(BreakExp p) =
   do break <- breakExp
      return (break, TUnit)

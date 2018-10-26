@@ -251,7 +251,8 @@ programaPrueba =
                  (T.pack "elRecord", RecordTy [(T.pack "a", NameTy $ T.pack "enteros")], unicaPosicion),
                  (T.pack "elOtroRecord", RecordTy [(T.pack "b", NameTy $ T.pack "elRecord")], unicaPosicion),
                  (T.pack "elReOtroRecord", RecordTy [(T.pack "b", NameTy $ T.pack "elOtroRecord")], unicaPosicion)
-                 ]
+                 ],
+        VarDec (T.pack "variableEntera") Escapa (Just $ T.pack "enteros") (IntExp 2 unicaPosicion) unicaPosicion
       ]
       (SeqExp [] unicaPosicion)
       unicaPosicion

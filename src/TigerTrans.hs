@@ -247,13 +247,10 @@ instance (MemM w) => IrGen w where
         -- mandamos un nada al stack, por si un /break/ aparece en algún lado que
         -- no tenga un while y detectamos el error. Ver [breakExp]
         pushSalida Nothing
-        upLvl
-        pushLevel lvl
         fun <- funDec
         -- posFunctionDec
         -- | Cuando salimos de la función sacamos el 'Nothing' que agregamos en 'preFunctionDec'.
         popSalida
-        downLvl
         -- devolvemos el código en el entorno donde fue computada.
         return fun
     -- functionDec :: BExp -> Level -> Bool -> w BExp
