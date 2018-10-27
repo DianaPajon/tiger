@@ -14,21 +14,24 @@ import           TigerPretty
 import           TigerSeman
 import           TigerTemp
 import           TigerUnique
+import           TigerState
 
 import           Text.Parsec           (runParser)
 
 data Options = Options {
         optArbol     :: Bool
         ,optDebEscap :: Bool
+        ,optCodInter :: Bool
     }
     deriving Show
 
 defaultOptions :: Options
-defaultOptions = Options {optArbol = False, optDebEscap = False }
+defaultOptions = Options {optArbol = False, optDebEscap = False, optCodInter = False }
 
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['a'] ["arbol"] (NoArg (\opts -> opts {optArbol = True})) "Muestra el AST luego de haber realizado el cálculo de escapes"
-            , Option ['e'] ["escapada"] (NoArg (\opts -> opts {optDebEscap = True})) "Stepper escapadas"]
+            , Option ['e'] ["escapada"] (NoArg (\opts -> opts {optDebEscap = True})) "Stepper escapadas"
+            , Option ['i'] ["intermedio"] (NoArg (\opts -> opts {optCodInter = True})) "Muestra el codigo intermedio"]
 
 compilerOptions :: [String] -> IO (Options, [String])
 compilerOptions argv = case getOpt Permute options argv of
@@ -80,5 +83,11 @@ main = do
     rawAst <- parserStep opts' s sourceCode
     ast <- calculoEscapadas rawAst opts'
     when (optArbol opts') (showExp ast)
-    let _ = evalState (templabRel ast) 0
+    print "Ejecutamos el analisis semantico"
+    let ret = run ast initConf
+    case ret of
+        Left err -> print $ show err
+        Right ((intermedio,tipo)) -> do
+            print "Codigo sin errores!"
+            when (optCodInter opts') (print $ show intermedio)
     print "Genial!"

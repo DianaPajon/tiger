@@ -36,12 +36,12 @@ ejemplo1 = [expr|
 
 ejemplo2 :: Exp -- La variable b no está definida.
 ejemplo2 = LetExp
-            [ VarDec (pack "a") False Nothing (IntExp 1 (Simple 1 2)) (Simple 1 2)
+            [ VarDec (pack "a") NoEscapa Nothing (IntExp 1 (Simple 1 2)) (Simple 1 2)
             -- , VarDec "b" Nothing Nothing (IntExp 2 1) 2
             -- , VarDec "c" Nothing Nothing (IntExp 3 1) 3
             , FunctionDec
                     [ (pack "f1"
-                      ,[(pack "a1", False , NameTy $ pack "int")]
+                      ,[(pack "a1", NoEscapa , NameTy $ pack "int")]
                       , Just $ pack "int",VarExp (SimpleVar $ pack "b") (Simple 5 5)
                       ,(Simple 5 6))
                     ]

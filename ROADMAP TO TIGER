@@ -1,4 +1,5 @@
 -Reesciribir los levels como se me antoje.
+-Revisar los records, como se definen y como se accede a sus campos, esta tirando errores en el test03.tig.
+-Meterse con el canonizador de código intermedio, para poder leer el output.
 -Por alguna razon, los accesos no tienen offsets de wSz, se incrementan de a 1. Recordar. Por ahora no sabemos suficiente.
 -Emprolijar y hacer un label de esta etapa, para cerrar codigo intermedio.
--Revisar los tests y hacer un andamiaje para poder avanzar testeando.
