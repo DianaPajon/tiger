@@ -296,7 +296,7 @@ transDecs' ((VarDec nm escap t init p): xs) exp = do
   iguales <- tiposIguales tipoExp tipoDeclarado
   if (tipoDeclarado == TUnit || iguales)
   then do 
-        (cuerpo, inits) <- transDecs' xs (insertValV nm (tipoExp, acceso, fromIntegral nivel) exp)
+        (cuerpo, inits) <- insertValV nm (tipoExp, acceso, fromIntegral nivel) (transDecs' xs  exp)
         return (cuerpo, asignacion : inits)
   else derror $ pack "El tipo declarado no conicide con el de la expresión dada"
 transDecs' ((TypeDec xs): xss)             exp = 
@@ -307,12 +307,12 @@ transDecs' ((TypeDec xs): xss)             exp =
           let sims = P.map fst tys
           clean <- cleanTys sims tys
           let decs = P.map (\(s,t) ->(s,arreglarLazy t clean)) clean
-          transDecs' xss (P.foldr (\(s,t) e -> insertTipoT s t e) (exp) decs)
+          P.foldr (\(s,t) e -> insertTipoT s t e) (transDecs' xss exp) decs
   else derror $ pack "Tipos recursivos mal declarados"
 transDecs' ((FunctionDec fs) : xs)          exp = do 
   funEntries <- mapM mkFunEntry fs
   funs <- mapM (transFun funEntries) fs --Ignoro los cuerpos de las definiciones por ahora.
-  transDecs' xs (P.foldr (\(s,fentry) e -> insertFunV s fentry e)  exp (actualizar funEntries funs))
+  P.foldr (\(s,fentry) e -> insertFunV s fentry e)  (transDecs' xs exp) (actualizar funEntries funs)
     where actualizar [] xs = []
           actualizar ((s,(l,a,b,c,d)):es) ((ci,t,l'):ts) = (s,(l',a,b,c,d)) : actualizar es ts
 transDecs' [] exp = do

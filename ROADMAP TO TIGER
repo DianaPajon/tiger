@@ -1,4 +1,4 @@
--Repasar el código intermedio de declaración y llamadas a función. Escribir el código.
--Terminar de rellenar el código intermedio en transExp. Ver como maneja errores e intentar copiarlo.
--Revisar transExp, sobretodo la traducción de tipos. Además, ver entre transExp y translate donde va la creación de levels.
+-Reesciribir los levels como se me antoje.
+-Por alguna razon, los accesos no tienen offsets de wSz, se incrementan de a 1. Recordar. Por ahora no sabemos suficiente.
+-Emprolijar y hacer un label de esta etapa, para cerrar codigo intermedio.
 -Revisar los tests y hacer un andamiaje para poder avanzar testeando.

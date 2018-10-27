@@ -247,19 +247,17 @@ programaPrueba :: Exp
 programaPrueba = 
     LetExp 
       [
-        TypeDec [(T.pack "enteros", NameTy $ T.pack "int", unicaPosicion),
-                 (T.pack "elRecord", RecordTy [(T.pack "a", NameTy $ T.pack "enteros")], unicaPosicion),
-                 (T.pack "elOtroRecord", RecordTy [(T.pack "b", NameTy $ T.pack "elRecord")], unicaPosicion),
-                 (T.pack "elReOtroRecord", RecordTy [(T.pack "b", NameTy $ T.pack "elOtroRecord")], unicaPosicion)
-                 ],
-        VarDec (T.pack "variableEntera") Escapa (Just $ T.pack "enteros") (IntExp 2 unicaPosicion) unicaPosicion
+        TypeDec [(T.pack "enteros", NameTy $ T.pack "int", unicaPosicion)],
+        VarDec (T.pack "variableEntera") Escapa (Just $ T.pack "enteros") (IntExp 2 unicaPosicion) unicaPosicion,
+        VarDec (T.pack "variableEntera2") Escapa (Just $ T.pack "enteros") (IntExp 4 unicaPosicion) unicaPosicion
       ]
-      (SeqExp [] unicaPosicion)
+      (StringExp "hola" unicaPosicion)
       unicaPosicion
   
-run :: Exp -> Estado -> Either [Errores] Estado
-run expre estadoInicial = execStateT (transExp expre :: TigerState (BExp, Tipo)) estadoInicial
-  
+run :: Exp -> Estado -> Either [Errores] ((BExp, Tipo),Estado)
+run expre estadoInicial = runStateT (transExp expre :: TigerState (BExp, Tipo))  estadoInicial
+
+
   
   
 showVEnv env = putStrLn $ show (vEnv env)
