@@ -15,7 +15,7 @@ import           TigerSeman
 import           TigerTemp
 import           TigerUnique
 import           TigerState
-
+import           TigerTrans
 import           Text.Parsec           (runParser)
 
 data Options = Options {
@@ -85,11 +85,11 @@ main = do
     rawAst <- parserStep opts' s sourceCode
     ast <- calculoEscapadas rawAst opts'
     when (optArbol opts') (showExp ast)
-    let ret = run ast initConf
+    let ret = runTranslate ast
     case ret of
-        Left err -> print $ show err
+        Left err -> print $ show err 
         Right ((intermedio,tipo), estado) -> do
             when (optCodInter opts') (print $ show intermedio)
-            when (optEstado opts') (print $ show estado)
+            when (optEstado opts') (print $ show  estado)
             print "Genial!"
     

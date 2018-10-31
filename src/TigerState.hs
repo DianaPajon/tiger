@@ -179,7 +179,7 @@ getTipoT' s e = (M.lookup s (tEnv e))
 instance MemM TigerState where 
     getActualLevel = do estado <- get
                         return $ actualLevel estado
-    upLvl = do estado <- get
+{-    upLvl = do estado <- get
                let niveles = level estado
                let actual = actualLevel estado
                let (MkLI frame lastLevel) = L.head niveles
@@ -193,6 +193,7 @@ instance MemM TigerState where
                  if(actual == -1)
                   then internal $ T.pack "Nivel mas bajo"
                   else put estado{actualLevel = actual - 1}
+-}
     pushSalida s = do
         estado <- get
         let ss = salidas estado
@@ -209,18 +210,17 @@ instance MemM TigerState where
         case sas of
             [] -> internal $ T.pack "No hay salidas para sacar"
             (s:ss) -> put estado{salidas = ss}
-    pushLevel ((MkLI pf0 lala):ls) = do estado <- get
-                                        let ((MkLI pf  lvl):ls) = level estado
-                                        put estado {
-                                            level = ((MkLI pf0  (lvl+1)):(MkLI pf lvl):ls), 
-                                            actualLevel = lvl + 1
-                                        }
+    pushLevel [] = internal $ T.pack "Se quiere agregar un lvl vacío"
+    pushLevel lvl = do estado <- get --"Push", ponele. En la práctica va a ser un push. "Push" es un Frame, no un lvl.
+                       put estado {
+                        level = lvl,
+                        actualLevel = getNlvl lvl
+                       }
     popLevel = do estado <- get
                   let (l:ls) = level estado
                   put estado{level = ls}
     topLevel = do estado <- get
-                  let (l:ls) = level estado
-                  return [l]
+                  return $ level estado
     pushFrag f = do
         estado <- get
         let fs = frags estado
@@ -254,8 +254,8 @@ programaPrueba =
       (StringExp "hola" unicaPosicion)
       unicaPosicion
   
-run :: Exp -> Estado -> Either [Errores] ((BExp, Tipo),Estado)
-run expre estadoInicial = runStateT (transExp expre :: TigerState (BExp, Tipo))  estadoInicial
+runTranslate :: Exp -> Either [Errores] ((BExp, Tipo),Estado)
+runTranslate expre = runStateT (transExp expre :: TigerState (BExp, Tipo))  initConf
 
 
   

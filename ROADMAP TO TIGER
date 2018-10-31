@@ -1,6 +1,4 @@
 -Estudiar applicatives.
--Reesciribir los levels como se me antoje.
--Recordar que callExp TOMA EL LEVEL... pero en mi implementación no lo usa.
 -Puede haber un record con dos campos del mismo nombre, ¿Que pasaría en tal caso?.
 -Meterse con el canonizador de código intermedio, entender que hace y si me sirve.
 -Por alguna razon, los accesos no tienen offsets de wSz, se incrementan de a 1. Recordar. Revisar con el canonizador.
@@ -27,3 +25,36 @@ se hace:
 hayCiclos ts = foldr (\bl bb -> bl || bb) False listaCiclos
  where listaCiclos = map (\(a,ref b) -> hayCiclo (hacerHead a ts) []) ts -- n^2
 --------------------------------
+Manejo de levels. Simplificado.
+
+El frame se rellena haciendo el análisis semántico de una función. 
+Este análisis semántico da el código intermedio del cuerpo.
+El level tiene que estar disponible al momento de hacer el código intermedio de una función.
+
+Se lleva en el estado, con dos campos.
+
+level: El level actual (una lista de frames con toda la anidación que estamos teniendo)
+actualLevel: El número de level actual. Inutil, se puede leer de la lista porque nunca la recorremos.
+
+Cuando se guarda la funEntry, esta lleva el Level con su frame y todos los de sus padres, para poder
+calcular static links.
+
+Cuando se genera el código intermedio de la función, el FRAME queda guardado en el fragmento.
+
+Es argumento a la hora de generar el código intermedio de una llamada a función. No se por qué, no se usa.
+
+data LevelI = MkLI {getFrame' :: Frame, getNlvl' :: Int}
+  deriving Show
+
+type Level = [LevelI]
+
+newLevel :: Level -> Symbol -> [Bool] -> Level
+newLevel [] s bs                 = [MkLI (newFrame s bs) 0]
+newLevel ls@(MkLI _ lvl :_) s bs = (MkLI (newFrame s bs) (lvl+1)) : ls
+
+getParent :: Level -> Level
+getParent []     = P.error "No fuimos del outermost level"
+getParent (_:xs) = xs
+
+outermost :: Level
+outermost = [ MkLI (newFrame (pack "_undermain") []) (-1) ]

@@ -139,8 +139,9 @@ class (Monad w, TLGenerator w, Demon w) => MemM w where
     -- | Level management
     -- Es un entero que nos indica en qué nivel estamos actualmente.
     getActualLevel :: w Int
-    upLvl :: w ()
-    downLvl :: w ()
+--Para simplificar la implementación de leves:
+--    upLvl :: w ()
+--    downLvl :: w () 
     -- | Salida management.
     -- Esta etiqueta la necesitamos porque es la que nos va permitir saltar a la
     -- salida de un while (Ver código intermedio de While). Usada en el break.
