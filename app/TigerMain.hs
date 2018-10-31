@@ -22,16 +22,18 @@ data Options = Options {
         optArbol     :: Bool
         ,optDebEscap :: Bool
         ,optCodInter :: Bool
+        ,optEstado :: Bool
     }
     deriving Show
 
 defaultOptions :: Options
-defaultOptions = Options {optArbol = False, optDebEscap = False, optCodInter = False }
+defaultOptions = Options {optArbol = False, optDebEscap = False, optCodInter = False, optEstado = False }
 
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['a'] ["arbol"] (NoArg (\opts -> opts {optArbol = True})) "Muestra el AST luego de haber realizado el cálculo de escapes"
             , Option ['e'] ["escapada"] (NoArg (\opts -> opts {optDebEscap = True})) "Stepper escapadas"
-            , Option ['i'] ["intermedio"] (NoArg (\opts -> opts {optCodInter = True})) "Muestra el codigo intermedio"]
+            , Option ['i'] ["intermedio"] (NoArg (\opts -> opts {optCodInter = True})) "Muestra el codigo intermedio"
+            , Option ['s'] ["estado"] (NoArg (\opts -> opts {optEstado = True})) "Muestra el estado"]
 
 compilerOptions :: [String] -> IO (Options, [String])
 compilerOptions argv = case getOpt Permute options argv of
@@ -83,11 +85,11 @@ main = do
     rawAst <- parserStep opts' s sourceCode
     ast <- calculoEscapadas rawAst opts'
     when (optArbol opts') (showExp ast)
-    print "Ejecutamos el analisis semantico"
     let ret = run ast initConf
     case ret of
         Left err -> print $ show err
-        Right ((intermedio,tipo)) -> do
-            print "Codigo sin errores!"
+        Right ((intermedio,tipo), estado) -> do
             when (optCodInter opts') (print $ show intermedio)
-    print "Genial!"
+            when (optEstado opts') (print $ show estado)
+            print "Genial!"
+    

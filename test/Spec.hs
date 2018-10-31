@@ -1,3 +1,12 @@
+import           TigerSeman
+import           TigerState
+import           TigerEscap
+import           TigerParser (parse)
+import           Tools
+
 main :: IO ()
-main = putStrLn "\n======= Test suite Spec in progress =======" >>
-       putStrLn "\n======= Test suite FIN ======="
+main = undefined
+
+tester 
+
+

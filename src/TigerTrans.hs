@@ -291,7 +291,7 @@ instance (MemM w) => IrGen w where
                         ,ExpS $ externalCall "_checkIndex" [Temp tvar, Temp tind]])
                 (Mem $ Binop Plus (Temp tvar) (Binop Mul (Temp tind) (Const wSz)))
     -- recordExp :: [(BExp,Int)]  -> w BExp
-    recordExp flds = do --No tendría sentido una record expression sin todas sus componentes. Mi tiger no te deja.
+    recordExp flds = do --Supone que el record está normalizado (TODOS los fields en orden). Siempre tienen todas las componentes.
         let size = Const $ List.length flds
         let init = Const 0
         t <- newTemp

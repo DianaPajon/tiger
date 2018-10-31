@@ -209,11 +209,22 @@ transTy (NameTy s) = --Es importante diferenciar las
   getTipoT s
 
 -- Esta funcion se encarga de detectar los bucles ilegales en la lista de tipos definidos
-noBadLoops :: [(Symbol,Ty,Pos)]  -> [(Symbol,Ty,Pos)] -> Bool
-noBadLoops [] ys = True
-noBadLoops ((s,NameTy sim,p):xs) ys = (P.foldr (\(s,t,p) b-> sim /= s && b) True (((s,NameTy sim,p):xs) ++ ys))
-                                      && ( noBadLoops xs ((s, NameTy sim, p):ys))
-noBadLoops ((s,t,p):xs) ys = noBadLoops xs ((s,t,p):ys)
+hayCiclos :: [(Symbol, Tipo)] -> Bool
+hayCiclos tips = P.foldr (\bl bb -> bl || bb) False listaCiclos
+ where 
+  nameTys = P.filter (\(s,t) -> esNameTy t)  tips
+  esNameTy t = case t of
+                    TTipo _ -> True
+                    _ -> False
+  listaCiclos = P.map (\(a,TTipo b) -> hayCiclo (hacerHead a nameTys) []) nameTys
+
+hayCiclo :: [(Symbol,Tipo)] -> [Symbol] -> Bool
+hayCiclo ((a, TTipo b):ts) ls = P.elem b ls || hayCiclo (hacerHead b ts) (a:ls)
+hayCiclo [] ls = False
+
+hacerHead :: Symbol -> [(Symbol, Tipo)] -> [(Symbol, Tipo)]
+hacerHead b ((c,t):ts) = if b == c then (c,t):ts else (hacerHead b ts ++ [(c,t)])
+hacerHead b [] = []
 
 -- Esta función se encarga de eliminar la gramatica del ABS y pasar
 -- las definiciones de tipo a la gramatica interna del compilador.
@@ -221,7 +232,9 @@ noBadLoops ((s,t,p):xs) ys = noBadLoops xs ((s,t,p):ys)
 preTy :: (Manticore w) => (Symbol, Ty, Pos) -> w (Symbol, Tipo)
 preTy (sim,(NameTy s),p)      = return (sim, TTipo s)
 preTy (sim,(RecordTy flds),p) = do unique <- ugen
-                                   return (sim, TRecord (P.map (\(sim,NameTy s) -> (sim, RefRecord s, 0))  flds) unique)
+                                   return (sim, TRecord (P.map (\(sim,NameTy s) -> (sim, RefRecord s, posicion sim flds))  flds) unique)
+                                where
+                                  posicion s ((s', t):xs) = if s == s' then 0 else 1 + posicion s xs
 preTy (sim,(ArrayTy s),p)     = do unique <- ugen
                                    return (sim, TArray (TTipo s) unique)
 
@@ -299,14 +312,14 @@ transDecs' ((VarDec nm escap t init p): xs) exp = do
         (cuerpo, inits) <- insertValV nm (tipoExp, acceso, fromIntegral nivel) (transDecs' xs  exp)
         return (cuerpo, asignacion : inits)
   else derror $ pack "El tipo declarado no conicide con el de la expresión dada"
-transDecs' ((TypeDec xs): xss)             exp = 
+transDecs' ((TypeDec xs): xss)             exp = do
   -- REVISAR COMPLETAMENTE ESTE CODIGO, ES UNA MUGRE. EN SERIO, MUGRE.
   -- Lo único bueno es que el manejo de accesos y niveles no puede nunca estar mal...
-  if (noBadLoops xs [])
-  then do tys <- mapM preTy xs
-          let sims = P.map fst tys
-          clean <- cleanTys sims tys
-          let decs = P.map (\(s,t) ->(s,arreglarLazy t clean)) clean
+  tys <- mapM preTy xs
+  let sims = P.map fst tys
+  clean <- cleanTys sims tys
+  if (not $ hayCiclos clean)
+  then do let decs = P.map (\(s,t) ->(s,arreglarLazy t clean)) clean
           P.foldr (\(s,t) e -> insertTipoT s t e) (transDecs' xss exp) decs
   else derror $ pack "Tipos recursivos mal declarados"
 transDecs' ((FunctionDec fs) : xs)          exp = do 
@@ -372,6 +385,15 @@ mkFunEntry (nombre,args,mtipo,cuerpo,pos) = do
 getTipoEntry :: (Unique, Label, [Tipo], Tipo, Externa) -> Tipo
 getTipoEntry (u,l,ts,t,e) = t
 
+normalizarRecord :: (Manticore w ) => Exp -> w Exp
+normalizarRecord (RecordExp flds rt p) = do
+  (TRecord fldsTy _) <- getTipoT rt --TODO: Bad fail alert.
+  let ordFldsTy = sortBy (\(a,b,c) (a',b',c') -> compare c c') fldsTy
+  let ordFldsRec = sortBy (\(a,b) (a',b') -> compare (posicion a fldsTy) (posicion a' fldsTy)) flds
+  return $ RecordExp ordFldsRec rt p
+ where posicion elem ((a,b,c):es) = if a == elem then 0 else 1 + posicion elem es
+  
+
 -- ** transExp :: (MemM w, Manticore w) => Exp -> w (BExp , Tipo)
 transExp :: (MemM w, Manticore w) => Exp -> w (BExp , Tipo)
 transExp (VarExp v p) = addpos (transVar v) p
@@ -425,21 +447,17 @@ transExp(RecordExp flds rt p) =
         -- Especial atención acá.
         -- Tenemos una lista de expresiones con efectos
         -- y estos efectos tiene producirse en orden! 'mapM' viene a mano.
-        fldsTys <- mapM (\(nm, cod) -> (nm,) <$> transExp cod) flds 
-        -- Buscamos los tipos de cada una de los campos.
-        -- como resultado tenemos 'fldsTys :: (Symbol, ( CIr , Tipo))'
-        -- Lo que resta es chequear que los tipos  sean los mismos, entre los que el programador dio
-        -- y los que tienen que ser según la definición del record.
-        let ordered = List.sortBy (Ord.comparing fst) fldsTys
-        -- asumiendo que no nos interesan como el usuario ingresa los campos los ordenamos.
-        flip addpos p $ cmpZip ( (\(s,(c,t)) -> (s,t)) <$> ordered) fldsTy -- Demon corta la ejecución.
+        (RecordExp fldsCanon _ _ ) <- normalizarRecord (RecordExp flds rt p)
+        fldsTys <- mapM (\(nm, cod) -> (nm,) <$> transExp cod) fldsCanon
+        flip addpos p $ cmpZip ( (\(s,(c,t)) -> (s,t)) <$> fldsTys) fldsTy -- Demon corta la ejecución.
+        --let camposRecord = P.map (\(s, (exp, t)) -> (exp, pos s fldsTy)) fldsTys
         let camposRecord = P.map (\(s, (exp, t)) -> (exp, pos s fldsTy)) fldsTys
         --record <- return recordExp
         record <- recordExp camposRecord
         return (record, trec) -- Si todo fue bien devolvemos trec.
     _ -> flip addpos p $ derror (pack "Error de tipos.")
   )
-  where pos s ((s',t,u):ts) = if s == s' then 0 else 1 + pos s ts
+  where pos s ((s',t,p):ts) = if s == s' then p else pos s ts
 transExp(SeqExp es p) = do
        es' <- mapM transExp es
        seq <- seqExp $ P.map fst es'

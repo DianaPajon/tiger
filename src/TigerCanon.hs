@@ -199,7 +199,7 @@ traceR b@(Label lab : _)  rs = do
                     rest' <- getnext rs
                     return $ most ++ [CJump p x y t l', Label l', Jump (Name f) f] ++ rest'
         (_ , Jump _ _) -> do {t <- getnext rs; return $ b ++ t}
-        _ -> error "Derbería ser imposible"
+        _ -> error "Debería ser imposible"
 traceR _ _ = error "Debería ser imposible"
 
 getnext :: (Trackable w, TLGenerator w) => [[Stm]] -> w [Stm]
