@@ -2,6 +2,9 @@ import TigerParser
 import TigerState
 import TigerTips
 import TigerTrans
+--For debuggin's sake
+import TigerPretty
+import TigerPrettyIr
 
 import           Data.Text as T
 import qualified TigerEscap as E
@@ -24,5 +27,6 @@ main =
 tester :: String -> Either [Errores] ((BExp, Tipo),Estado)
 tester s =   either (\err -> Left []) (\exp -> runTranslate exp) (
                   either (\err -> Left $ E.Interno (T.pack "Error de parsing")) (\exp -> E.calcularEEsc exp) (parse s)
-                )
-          
+            )
+quickTest :: String -> String -> IO ()
+quickTest dir file = test dir (badRes . show) (const $ bluenice) tester file

@@ -343,7 +343,11 @@ instance (MemM w) => IrGen w where
                     let bfront = init bes
                     ess <- mapM unNx bfront
                     return $ Ex $ Eseq (seq ess) e'
-            _ -> internal $ pack "WAT!123"
+            Cx e -> do --Este caso se presenta, por algún motivo. A la hora de tener una "epxresión booleana"
+                    e' <- unEx (Cx e)
+                    let bfront = init bes
+                    ess <- mapM unNx bfront
+                    return $ Ex $ Eseq (seq ess) e'
     -- preWhileforExp :: w ()
     preWhileforExp = newLabel >>= pushSalida . Just
     -- posWhileforExp :: w ()

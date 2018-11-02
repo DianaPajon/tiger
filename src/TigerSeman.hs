@@ -157,9 +157,9 @@ cmpZip ((sl,tl):xs) ((sr,tr,p):ys) =
         then cmpZip xs ys
         else errorTipos tl tr
 
-buscarM :: Symbol -> [(Symbol, Tipo, Int)] -> Maybe Tipo
+buscarM :: Symbol -> [(Symbol, Tipo, Int)] -> Maybe (Symbol, Tipo, Int)
 buscarM s [] = Nothing
-buscarM s ((s',t,_):xs) | s == s' = Just t
+buscarM s ((s',t,i):xs) | s == s' = Just (s',t,i)
                         | otherwise = buscarM s xs
 
 -- | __Completar__ 'transVar'.
@@ -168,20 +168,26 @@ buscarM s ((s',t,_):xs) | s == s' = Just t
 -- ** transVar :: (MemM w, Manticore w) => Var -> w (BExp, Tipo)
 transVar :: (MemM w, Manticore w) => Var -> w ( BExp , Tipo)
 transVar (SimpleVar s)      = do (t,a,i) <- getTipoValV s -- Nota [1]
-                                 nil <- nilExp
-                                 return (nil, t)
-transVar (FieldVar v s)     = do (e, tBase) <- transVar v
-                                 nil <- nilExp
+                                 var <- simpleVar a i
+                                 return (var, t)
+transVar (FieldVar v s)     = do (var, tBase) <- transVar v
                                  case tBase of 
                                   TRecord fs u -> 
                                     case buscarM s fs of
-                                      Just t -> return (nil, t)
+                                      Just (s,t,i) -> do
+                                        campo <- fieldVar var i
+                                        return (campo, t)
                                       Nothing -> derror $ pack  "No se encontró el campo."
                                   _ -> derror $ pack "No es un record"
-transVar (SubscriptVar v e) = do (e, tBase ) <- transVar v
-                                 nil <- nilExp
+transVar (SubscriptVar v e) = do (var, tBase) <- transVar v
                                  case tBase of
-                                  TArray t u -> return (nil, t)
+                                  TArray t u -> do
+                                    (indice, tipo) <- transExp e
+                                    case tipo of
+                                      TInt _ -> do 
+                                        campo <- subscriptVar var indice
+                                        return (campo, t)
+                                      _ ->  errorTipos tipo $ TInt RO
                                   _ -> derror $ pack "No es un array"
 
 -- | __Completar__ 'TransTy'
@@ -305,16 +311,14 @@ transDecs' ((VarDec nm escap t init p): xs) exp = do
   asignacion <- assignExp variable inicializacion
   tipoDeclarado <- case t of
                     Just s -> getTipoT s
-                    Nothing -> (return TUnit)
+                    Nothing -> return tipoExp
   iguales <- tiposIguales tipoExp tipoDeclarado
-  if (tipoDeclarado == TUnit || iguales)
+  if (iguales)
   then do 
-        (cuerpo, inits) <- insertValV nm (tipoExp, acceso, fromIntegral nivel) (transDecs' xs  exp)
+        (cuerpo, inits) <- insertValV nm (tipoDeclarado, acceso, fromIntegral nivel) (transDecs' xs  exp)
         return (cuerpo, asignacion : inits)
   else derror $ pack "El tipo declarado no conicide con el de la expresión dada"
 transDecs' ((TypeDec xs): xss)             exp = do
-  -- REVISAR COMPLETAMENTE ESTE CODIGO, ES UNA MUGRE. EN SERIO, MUGRE.
-  -- Lo único bueno es que el manejo de accesos y niveles no puede nunca estar mal...
   tys <- mapM preTy xs
   let sims = P.map fst tys
   clean <- cleanTys sims tys
@@ -345,13 +349,15 @@ transFun fs (nombre, args, mt, body, _) = do
   let nivelFun = nivelFuncion fs nombre
   pushLevel nivelFun
   args <- mapM mkArgEntry args
-  (cuerpo , tipo) <- P.foldr (\(s,argentry) e  -> insertValV s argentry e) expresionConFuns args
+  let expresionConArgs = P.foldr (\(s,argentry) e  -> insertValV s argentry e) (transExp body) args
+  (cuerpo , tipo) <- P.foldr (\(s,fentry) e -> insertFunV s fentry e) expresionConArgs fs
   let isproc = if mt == Nothing then IsProc else IsFun
   intermedio <- envFunctionDec nivelFun (functionDec cuerpo nivelFun isproc)
   levelConArgs <- topLevel
   popLevel
   case mt of 
-    Nothing -> return (intermedio,TUnit,levelConArgs)
+    Nothing -> do esProc <- tiposIguales TUnit tipo
+                  if esProc then return (intermedio,TUnit,levelConArgs) else derror $ pack "Un procedimiento retorna un valor"
     Just t -> do tipoEsperado <- getTipoT t
                  iguales <- tiposIguales tipoEsperado tipo
                  if iguales
@@ -359,8 +365,6 @@ transFun fs (nombre, args, mt, body, _) = do
                   else derror $ pack "La función no tipa"
     where 
       nivelFuncion ((nombre, (level,_,_,_,_)):funs) s = if s == nombre then level else nivelFuncion funs s
-      expresionConFuns = P.foldr (\(s,fentry) e -> insertFunV s fentry e)  (transExp body) fs
-
 
 mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> w (Symbol, ValEntry)
 mkArgEntry (s,e,t) = do
@@ -401,7 +405,7 @@ transExp UnitExp{} =  fmap (,TUnit) unitExp
 transExp NilExp{} =  fmap (,TNil) nilExp
 transExp (IntExp i _) = fmap (,TInt RW) (intExp i)
 transExp (StringExp s _) =  fmap (,TString) (stringExp (pack s))
-transExp (CallExp nm args p) = do
+transExp (CallExp nm args p) = flip addpos p (do
   transArgs <- mapM transExp args
   let tiposArgs = P.map snd transArgs
   let argumentos = P.map fst transArgs
@@ -409,32 +413,39 @@ transExp (CallExp nm args p) = do
   iguales <- mapM (\(t1,t2) -> tiposIguales t1 t2) $ zip tiposArgs parametros
   let tipa = P.foldr (\a b -> a && b) True iguales
   let isProc = if tipo == TUnit then IsProc else IsFun
-  if tipa
+  if tipa && P.length parametros == P.length argumentos
   then do llamada <- callExp label externa isProc level argumentos
           return (llamada, tipo)
   else derror $ pack "La llamada a funcion no tipa."
-transExp (OpExp el' oper er' p) = do -- Esta va /gratis/
-        (leftExp, el) <- transExp el'
-        (rightExp, er) <- transExp er'
-        intermedio <- case (el, er) of
-            (TInt _, TInt _) -> 
-              if comparacion oper 
-              then binOpIntRelExp leftExp oper rightExp
-              else binOpIntExp leftExp oper rightExp
-            (TString , TString) -> 
-              if comparacion oper
-              then binOpStrExp leftExp oper rightExp
-              else derror $ pack "Operacion inválida"
-            (TArray _ u1, TArray _ u2) -> 
-              case (u1 == u2, igualdad oper) of
-                (True, True) -> binOpIntRelExp leftExp oper rightExp --Es comparacion de instancias
-                _ -> derror $ pack "Operacion inválida"
-            (TRecord _ u1, TArray _ u2) -> 
-              case (u1 == u2, igualdad oper) of
-                (True, True) -> binOpIntRelExp leftExp oper rightExp --Es comparacion de instancias
-                _ -> derror $ pack "Operacion inválida"
-            _ -> derror $ pack "Operacion inválida"
-        return (intermedio, TInt RO)
+ )
+transExp (OpExp el' oper er' p) = flip addpos p (do -- Esta va /gratis/
+  (leftExp, el) <- transExp el'
+  (rightExp, er) <- transExp er'
+  intermedio <- case (el, er) of
+      (TInt _, TInt _) -> 
+        if comparacion oper 
+        then binOpIntRelExp leftExp oper rightExp
+        else binOpIntExp leftExp oper rightExp
+      (TString , TString) -> 
+        if comparacion oper
+        then binOpStrExp leftExp oper rightExp
+        else derror $ pack "Operacion inválida"
+      (TArray _ u1, TArray _ u2) -> 
+        case (u1 == u2, igualdad oper) of
+          (True, True) -> binOpIntRelExp leftExp oper rightExp --Es comparacion de instancias
+          _ -> derror $ pack "Operacion inválida"
+      (TRecord _ u1, tu2) -> 
+        case tu2 of
+          TNil -> if igualdad oper then  binOpIntRelExp leftExp oper rightExp else derror $ pack "Operacion inválida"
+          TRecord _ u2 -> if u1 == u2 && igualdad oper then  binOpIntRelExp leftExp oper rightExp else derror $ pack "Operacion inválida"
+          _ -> derror $ pack "Operacion inválida"
+      (TNil, tu2) -> 
+        case tu2 of
+          TRecord _ u2 -> if igualdad oper then  binOpIntRelExp leftExp oper rightExp else derror $ pack "Operacion inválida"
+          _ -> derror $ pack "Operacion inválida"
+      _ -> derror $ pack "Operacion inválida"
+  return (intermedio, TInt RO)
+ )
 -- | Recordemos que 'RecordExp :: [(Symbol, Exp)] -> Symbol -> Pos -> Exp'
 -- Donde el primer argumento son los campos del records, y el segundo es
 -- el texto plano de un tipo (que ya debería estar definido). Una expresión
@@ -455,21 +466,22 @@ transExp(RecordExp flds rt p) =
         --record <- return recordExp
         record <- recordExp camposRecord
         return (record, trec) -- Si todo fue bien devolvemos trec.
-    _ -> flip addpos p $ derror (pack "Error de tipos.")
-  )
+    _ -> flip addpos p $ derror (pack "Error de tipos en la definición del record.")
+ )
   where pos s ((s',t,p):ts) = if s == s' then p else pos s ts
 transExp(SeqExp es p) = do
        es' <- mapM transExp es
        seq <- seqExp $ P.map fst es'
        return ( seq , snd $ last es')
-transExp(AssignExp var val p) = 
-  do (variable, tipoVar) <- transVar var
-     (valor, tipoExp) <- transExp val
-     iguales <- tiposIguales tipoVar tipoExp
-     asignacion <- assignExp variable valor
-     if (iguales)
-      then return (asignacion, TNil)
-      else derror $ pack ("Los tipos no coinciden en la asignaciòn, linea " ++ show p)
+transExp(AssignExp var val p) = flip addpos p (do 
+  (variable, tipoVar) <- transVar var
+  (valor, tipoExp) <- transExp val
+  iguales <- tiposIguales tipoVar tipoExp
+  asignacion <- assignExp variable valor
+  if (iguales)
+  then return (asignacion, TUnit)
+  else derror $ pack ("Los tipos no coinciden en la asignaciòn, linea " ++ show p)
+ )
 transExp(IfExp co th Nothing p) = do
         -- ** (ccond , co') <- transExp co
   -- Analizamos el tipo de la condición
@@ -496,20 +508,20 @@ transExp(IfExp co th (Just el) p) = do
 transExp(WhileExp co body p) = do
   (condicion , coTy) <- transExp co
   unless (equivTipo coTy TBool) $ errorTiposMsg p "Error en la condición del While" coTy TBool
-  (cuerpo , boTy) <- transExp body
-  unless (equivTipo boTy TUnit) $ errorTiposMsg p "Error en el cuerpo del While" boTy TBool
   preWhileforExp
+  (cuerpo , boTy) <- transExp body
   while <- whileExp condicion cuerpo
+  
   posWhileforExp
   return (while, TUnit)
 transExp(ForExp nv mb lo hi bo p) = 
   transDecs [(VarDec nv mb Nothing lo p)] (do
-      (cuerpo, tCuerpo) <- transExp bo
       (variable, tVariable) <- transExp (VarExp ( SimpleVar nv) (Simple 0 0))
       (minimo, tMinimo) <- transExp lo
       (maximo, tMaximo) <- transExp hi
-      unless (equivTipo tCuerpo TUnit) $ errorTiposMsg p "Error en el cuerpo del For" tCuerpo TBool
       preWhileforExp
+      (cuerpo, tCuerpo) <- transExp bo
+      unless (equivTipo tCuerpo TUnit) $ errorTiposMsg p "Error en el cuerpo del For" tCuerpo TBool
       for <- forExp minimo maximo variable cuerpo
       posWhileforExp
       return (for, TUnit)

@@ -16,7 +16,7 @@ type_loc = "./test/test_code/type"
 
 test :: String -> (a -> IO ()) -> (b -> IO ()) -> (String -> Either a b) -> String ->  IO ()
 test loc bad good f s = readFile (loc ++ '/' : s) >>=
-                        either (\a -> print ("Filename:" ++ s) >> bad a) good . f
+                        either (\a -> print ("Filename:" ++ s) >> bad a) (\a -> print ("Filename:" ++ s) >> good a) . f
 
 testSTDGood :: Show a => (String -> Either a b) -> String -> IO ()
 testSTDGood = testGood good_loc

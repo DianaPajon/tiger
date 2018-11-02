@@ -48,7 +48,7 @@ instance Show Estado where
                   "Level: \n\n" ++ show (level estado)
 
 -- Tipo que modela los errores
-data Errores = NotFound T.Text | DiffVal T.Text | Internal T.Text
+data Errores = NotFound T.Text | DiffVal T.Text | Internal T.Text | Error T.Text
     deriving Show
 
 -- Configuracion inicial del compilador.
@@ -85,11 +85,11 @@ type TigerState = StateT Estado (Either [Errores])
 
 instance Demon TigerState where
     --derror :: Symbol -> w a
-    derror s = lift (Left [(Internal s)])
+    derror s = lift (Left [(Error s)])
     --adder :: w a -> Symbol -> w a
     adder m s = do estado <- get
                    case (runStateT m) estado of
-                        Left err -> lift $ Left ((Internal s):err)
+                        Left err -> lift $ Left ((Error s):err)
                         Right x -> do put (snd x) --TODO: Esto tipa porque asi lo armé, pero no lo entiendo, revisar.
                                       return (fst x)
 --Función auxiliar, similar a withState, solo que repone el estado anterior al terminar.
@@ -144,13 +144,13 @@ insertValV' :: Symbol -> ValEntry -> Estado -> Estado
 insertValV' simbolo entrada estado = 
     estado
     {
-        vEnv = insert simbolo (Var entrada)  (vEnv estado)
+        vEnv = insert simbolo (Var entrada)  $! (vEnv estado)
     }
 insertFunV' :: Symbol -> FunEntry -> Estado -> Estado
 insertFunV' simbolo entrada estado = 
     estado
     {
-        vEnv = insert simbolo (Func entrada)  (vEnv estado)
+        vEnv = insert simbolo (Func entrada)  $! (vEnv estado)
     }
 insertVRO' :: Symbol -> Estado -> Estado
 insertVRO' simbolo estado = estado --TODO
