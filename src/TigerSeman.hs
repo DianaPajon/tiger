@@ -143,7 +143,9 @@ igualdad NeqOp = True
 igualdad EqOp = True
 igualdad _ = False
 
-
+diferentes :: (Eq a) => [a] -> Bool
+diferentes [] = True
+diferentes (a:xs) = not (elem a xs) && diferentes xs
 
 -- | Función que chequea que los tipos de los campos sean los mismos
 -- Ver 'transExp (RecordExp ...)'
@@ -187,7 +189,7 @@ transVar (SubscriptVar v e) = do (var, tBase) <- transVar v
                                       TInt _ -> do 
                                         campo <- subscriptVar var indice
                                         return (campo, t)
-                                      _ ->  errorTipos tipo $ TInt RO
+                                      _ ->  errorTipos tipo $ TInt RW
                                   _ -> derror $ pack "No es un array"
 
 -- | __Completar__ 'TransTy'
@@ -308,30 +310,39 @@ transDecs' ((VarDec nm escap t init p): xs) exp = do
   nivel <- getActualLevel
   variable <- varDec acceso
   (inicializacion, tipoExp) <- transExp init
+  let tipoInit = if tipoExp == TInt RO then TInt RW else tipoExp
   asignacion <- assignExp variable inicializacion
   tipoDeclarado <- case t of
                     Just s -> getTipoT s
-                    Nothing -> return tipoExp
+                    Nothing -> return tipoInit
   iguales <- tiposIguales tipoExp tipoDeclarado
-  if (iguales)
-  then do 
-        (cuerpo, inits) <- insertValV nm (tipoDeclarado, acceso, fromIntegral nivel) (transDecs' xs  exp)
-        return (cuerpo, asignacion : inits)
-  else derror $ pack "El tipo declarado no conicide con el de la expresión dada"
+
+  case (iguales, tipoDeclarado == TNil) of
+    (True, False) -> do 
+      (cuerpo, inits) <- insertValV nm (tipoDeclarado, acceso, fromIntegral nivel) (transDecs' xs  exp)
+      return (cuerpo, asignacion : inits)
+    (True, True) ->  derror $ pack "Se debe declarar el tipo para poder asignar nil"
+    (False, _) -> derror $ pack "El tipo declarado no conicide con el de la expresión dada"
+
 transDecs' ((TypeDec xs): xss)             exp = do
   tys <- mapM preTy xs
   let sims = P.map fst tys
   clean <- cleanTys sims tys
-  if (not $ hayCiclos clean)
+  let noRepiten = diferentes sims
+  if ((not $ hayCiclos clean) && noRepiten)
   then do let decs = P.map (\(s,t) ->(s,arreglarLazy t clean)) clean
           P.foldr (\(s,t) e -> insertTipoT s t e) (transDecs' xss exp) decs
-  else derror $ pack "Tipos recursivos mal declarados"
+  else derror $ pack "Tipos mal declarados"
 transDecs' ((FunctionDec fs) : xs)          exp = do 
-  funEntries <- mapM mkFunEntry fs
-  funs <- mapM (transFun funEntries) fs --Ignoro los cuerpos de las definiciones por ahora.
-  P.foldr (\(s,fentry) e -> insertFunV s fentry e)  (transDecs' xs exp) (actualizar funEntries funs)
-    where actualizar [] xs = []
-          actualizar ((s,(l,a,b,c,d)):es) ((ci,t,l'):ts) = (s,(l',a,b,c,d)) : actualizar es ts
+  let noRepiten = diferentes $ P.map (\(s,_,_,_,_) -> s) fs
+  if(noRepiten)
+    then do
+      funEntries <- mapM mkFunEntry fs
+      funs <- mapM (transFun funEntries) fs --Ignoro los cuerpos de las definiciones por ahora.
+      P.foldr (\(s,fentry) e -> insertFunV s fentry e)  (transDecs' xs exp) (actualizar funEntries funs)
+    else derror $ pack "Funciones mal declaradas"
+  where actualizar [] xs = []
+        actualizar ((s,(l,a,b,c,d)):es) ((ci,t,l'):ts) = (s,(l',a,b,c,d)) : actualizar es ts
 transDecs' [] exp = do
   cuerpo <- exp
   return (cuerpo, [])
@@ -444,7 +455,7 @@ transExp (OpExp el' oper er' p) = flip addpos p (do -- Esta va /gratis/
           TRecord _ u2 -> if igualdad oper then  binOpIntRelExp leftExp oper rightExp else derror $ pack "Operacion inválida"
           _ -> derror $ pack "Operacion inválida"
       _ -> derror $ pack "Operacion inválida"
-  return (intermedio, TInt RO)
+  return (intermedio, TInt RW)
  )
 -- | Recordemos que 'RecordExp :: [(Symbol, Exp)] -> Symbol -> Pos -> Exp'
 -- Donde el primer argumento son los campos del records, y el segundo es
@@ -476,11 +487,14 @@ transExp(SeqExp es p) = do
 transExp(AssignExp var val p) = flip addpos p (do 
   (variable, tipoVar) <- transVar var
   (valor, tipoExp) <- transExp val
+  let asignable = tipoVar /= TInt RO
   iguales <- tiposIguales tipoVar tipoExp
-  asignacion <- assignExp variable valor
-  if (iguales)
-  then return (asignacion, TUnit)
-  else derror $ pack ("Los tipos no coinciden en la asignaciòn, linea " ++ show p)
+  case (asignable,iguales) of
+    (False,_) -> addpos (derror $ pack ("La variable " ++ show var ++ " es de solo lectura")) p
+    (True, False) -> derror $ pack ("Los tipos no coinciden en la asignaciòn, linea " ++ show p)
+    (True, True) -> do 
+      asignacion <- assignExp variable valor
+      return (asignacion, TUnit)
  )
 transExp(IfExp co th Nothing p) = do
         -- ** (ccond , co') <- transExp co
@@ -509,23 +523,29 @@ transExp(WhileExp co body p) = do
   (condicion , coTy) <- transExp co
   unless (equivTipo coTy TBool) $ errorTiposMsg p "Error en la condición del While" coTy TBool
   preWhileforExp
-  (cuerpo , boTy) <- transExp body
+  (cuerpo , boTy) <- transExp body      
+  unless (equivTipo boTy TUnit) $ errorTiposMsg p "Error en el cuerpo del While" boTy TUnit
   while <- whileExp condicion cuerpo
-  
   posWhileforExp
   return (while, TUnit)
 transExp(ForExp nv mb lo hi bo p) = 
-  transDecs [(VarDec nv mb Nothing lo p)] (do
+  do
+    --Genero la varEntry que necesito.
+    acceso <- allocLocal False
+    level <-getActualLevel
+    insertValV nv (TInt RO, acceso, level) ( do
       (variable, tVariable) <- transExp (VarExp ( SimpleVar nv) (Simple 0 0))
       (minimo, tMinimo) <- transExp lo
+      unless (equivTipo tMinimo (TInt RW)) $ errorTiposMsg p "El minimo del for no es un entero"  tMinimo (TInt RW)
       (maximo, tMaximo) <- transExp hi
+      unless (equivTipo tMaximo (TInt RW)) $ errorTiposMsg p "El maximo del for no es un entero" tMaximo (TInt RW)
       preWhileforExp
       (cuerpo, tCuerpo) <- transExp bo
-      unless (equivTipo tCuerpo TUnit) $ errorTiposMsg p "Error en el cuerpo del For" tCuerpo TBool
+      unless (equivTipo tCuerpo TUnit) $ errorTiposMsg p "Error en el cuerpo del For" tCuerpo TUnit
       for <- forExp minimo maximo variable cuerpo
       posWhileforExp
       return (for, TUnit)
-    )
+     )
 transExp(LetExp dcs body p) = transDecs dcs (transExp body)
 transExp(BreakExp p) =
   do break <- breakExp
