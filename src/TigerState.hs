@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# Language UndecidableInstances  #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 module TigerState where
 import           TigerSeman
@@ -17,7 +17,9 @@ import           Data.Text as T
 import           Data.Map as M
 import           Control.Monad.State
 import           GHC.List as L
-
+import           TigerCanon
+import           TigerTree as Tree
+import           TigerPrettyIr
 -- Estructura de datos que se encarga de llevar el estado
 data Estado = 
     ST {
@@ -243,7 +245,7 @@ downLvl' [] i = Nothing
 unicaPosicion :: Pos
 unicaPosicion = Simple {line = 0, col = 0}
 
-programaPrueba :: Exp
+programaPrueba :: TigerAbs.Exp
 programaPrueba = 
     LetExp 
       [
@@ -254,11 +256,34 @@ programaPrueba =
       (StringExp "hola" unicaPosicion)
       unicaPosicion
   
-runTranslate :: Exp -> Either [Errores] ((BExp, Tipo),Estado)
+runTranslate :: TigerAbs.Exp -> Either [Errores] ((BExp, Tipo),Estado)
 runTranslate expre = runStateT (transExp expre :: TigerState (BExp, Tipo))  initConf
 
 
-  
-  
+
+getStm :: TigerAbs.Exp -> Tree.Stm
+getStm programa = 
+    let 
+        bexp = either (\s -> undefined) (\((a,b),c) -> a ) $ runTranslate programa
+        statement = either (\s -> undefined) (\(a,c) -> a ) $ prSt
+        prSt = runStateT (unNx bexp :: TigerState Tree.Stm) initConf
+    in  statement
+
+
+getExp :: TigerAbs.Exp -> Tree.Exp
+getExp programa = 
+        let 
+            bexp = either (\s -> undefined) (\((a,b),c) -> a ) $ runTranslate programa
+            expresion = either (\s -> undefined) (\(a,c) -> a ) $ prEx
+            prEx = runStateT (unEx bexp :: TigerState Tree.Exp) initConf
+        in  expresion
+    
+    
+
+prettyTranslate programa = 
+    let 
+        bexp = either (\s -> undefined) (\((a,b),c) -> a ) $ runTranslate programa
+    in renderBIr bexp
+
 showVEnv env = putStrLn $ show (vEnv env)
 showTEnv env = putStrLn $ show (tEnv env)

@@ -62,3 +62,7 @@ getParent (_:xs) = xs
 
 outermost :: Level
 outermost = [ MkLI (newFrame (pack "_undermain") []) (-1) ]
+---------
+Mecanismo para la selección de instrucciones.
+
+Lo ideal, creo sería hacer un selector dinámico. Pero no se me termina de ocurrir como.

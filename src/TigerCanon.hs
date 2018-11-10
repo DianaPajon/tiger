@@ -2,12 +2,7 @@
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module TigerCanon
-  ( linearize     -- | Stm -> [Stm]
-  , basicBlocks   -- | [Stm] -> ([[Stm]] , Label)
-  , traceSchedule -- | ( [[Stm]] , Label) -> [Stm]
-  )
-where
+module TigerCanon where
 
 import           TigerTemp
 import           TigerTree
