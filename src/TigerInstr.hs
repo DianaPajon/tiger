@@ -19,7 +19,9 @@ data Assem =
       msrc :: Temp
   }
 
-class TLGenerator w => InsEmit w where
+class TLGenerator w => Emisor w where
     emit :: Assem -> w ()
     getCode :: w [Assem]
+    munchExp :: Tree.Exp -> w Temp
+    munchStm :: Tree.Stm -> w ()
 
