@@ -1,4 +1,4 @@
-module TigerInstr where
+module TigerEmit where
 import TigerTree
 import TigerTemp
 

@@ -20,6 +20,7 @@ import           GHC.List as L
 import           TigerCanon
 import           TigerTree as Tree
 import           TigerPrettyIr
+import           TigerEmit
 -- Estructura de datos que se encarga de llevar el estado
 data Estado = 
     ST {
@@ -29,7 +30,8 @@ data Estado =
             level :: Level,
             actualLevel :: Int,
             salidas :: [Maybe Label],
-            frags :: [Frag]
+            frags :: [Frag],
+            assembly :: [Assem]
     }
 
 -- Función para mostrar el entorno
@@ -78,7 +80,8 @@ initConf =
             -- lo podemos usar para navegar los lvls.
             actualLevel = 0,
             salidas = [],
-            frags = []
+            frags = [],
+            assembly = []
         }
 
 type TigerState = StateT Estado (Either [Errores])
@@ -242,6 +245,37 @@ downLvl' ((MkLI f l):(MkLI f' l'):ls) i = if l' == i then Just l else downLvl' (
 downLvl' ((MkLI f l):[]) i = if l == i then Just l else Nothing
 downLvl' [] i = Nothing
 
+instance Emisor TigerState where
+    emit instr = do
+        estado <- get
+        let instrucciones = assembly estado
+        put estado{assembly = instrucciones ++ instr}
+    getCode = do
+        estado <- get
+        return $ assembly estado
+    munchExp reg@(Temp t) = do
+        let assem = Oper {
+            oassem = "",
+            osrc = [],
+            odest = [],
+            ojump = Nothing
+        }
+        return reg
+    munchStm lab@(Label l) = do
+        let ls = unpack l
+        let ins = l ++ ":\n"
+        let assem = Label {
+            lassem = pack ins,
+            label = l
+        }
+        return ()
+    muchStm (Move (Temp t1) e2) = do
+        t2 <- munchExp e1
+        let assem = Oper {
+            
+        }
+
+--BEGIN CODIGO PRUEBA
 unicaPosicion :: Pos
 unicaPosicion = Simple {line = 0, col = 0}
 
@@ -287,3 +321,4 @@ prettyTranslate programa =
 
 showVEnv env = putStrLn $ show (vEnv env)
 showTEnv env = putStrLn $ show (tEnv env)
+--END CODIGO PRUEBA
