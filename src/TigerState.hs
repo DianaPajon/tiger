@@ -249,7 +249,7 @@ instance Emisor TigerState where
     emit instr = do
         estado <- get
         let instrucciones = assembly estado
-        put estado{assembly = instrucciones ++ instr}
+        put estado{assembly = instrucciones ++ [instr]}
     getCode = do
         estado <- get
         return $ assembly estado
@@ -260,21 +260,94 @@ instance Emisor TigerState where
             odest = [],
             ojump = Nothing
         }
-        return reg
-    munchStm lab@(Label l) = do
+        return t
+--Caso particular, Mem usado en el lado izquierdo de un move.--FODO: Registrer addessing con offset.
+    munchStm (Move (Mem e1) e2) = do
+        t1 <- munchExp e1
+        t2 <- munchExp e2
+        emit Oper {
+            oassem = "movl `s0, (`d0)"
+           ,osrc = [t2]
+           ,odest = [t1]
+           ,ojump = Nothing
+        }
+--Otro caso particular, un label el el lado izquierdo de un move.
+    munchStm (Move (Name l1) e2) = do
+        t2 <- munchExp e2
+        let label = unpack l1
+        emit Oper {
+            oassem = "movl `s0, (label)"
+           ,osrc = [t2]
+           ,odest = []
+           ,ojump = Nothing
+        }
+--Caso general e1 puede ser un registro solamente, es el caso "Mover a un registro". Obvia optimizacion usar un solo registro.
+    munchStm (Move e1 e2) = do
+        t2 <- munchExp e2
+        t1 <- munchExp e1
+        emit Oper {
+            oassem = "movl `s0, `d0"
+           ,osrc = [t2]
+           ,odest = [t1]
+           ,ojump = Nothing
+        }
+    munchStm (Jump (Name l1) l2) = do
+        let label = unpack l1
+        emit Oper {
+            oassem = "jmp " ++ label
+           ,osrc = []
+           ,odest = []
+           ,ojump = Just [l1]
+        }
+    munchStm (CJump op e1 e2 tl fl) = do
+        t1 <- munchExp e1
+        t2 <- munchExp e2
+        let trueDest = unpack tl
+        let falseDest = unpack fl
+        --Emito 3 instrucciones. Comparo primero
+        emit Oper {
+            oassem = "cmp `s0, `s1" --Revisar si el canonizado no simplifica esto
+           ,osrc = [t1,t2]
+           ,odest = []
+           ,ojump = Nothing
+        }
+        --Salto condicional al target true
+        emit Oper {
+            oassem = jumpInstruction op ++ " " ++ trueDest
+           ,osrc = []
+           ,odest = []
+           ,ojump = Just [tl]
+        }
+        --En caso de que no pase nada, salto al target falso.
+        emit Oper {
+            oassem = "jmp " ++ falseDest
+           ,osrc = []
+           ,odest = []
+           ,ojump = Just [fl]
+        }
+    --Instrucciones de salto condicional de x86 según el operador.
+      where jumpInstruction op = case op of
+                                    Tree.EQ -> "je"
+                                    Tree.NE -> "jne"
+                                    Tree.LT -> "jl"
+                                    Tree.GT -> "jg"
+                                    Tree.LE -> "jle"
+                                    Tree.GE -> "jge"
+--Casos simples
+    munchStm (Label l) = do
         let ls = unpack l
-        let ins = l ++ ":\n"
-        let assem = Label {
-            lassem = pack ins,
+        let ins = ls ++ ":\n"
+        emit Lab {
+            lassem = ins,
             label = l
         }
+    munchStm (ExpS e) = do
+        munchExp e
         return ()
-    muchStm (Move (Temp t1) e2) = do
-        t2 <- munchExp e1
-        let assem = Oper {
-            
-        }
-
+    munchStm (Seq s1 s2) = do
+        munchStm s1
+        munchStm s2
+        return ()
 --BEGIN CODIGO PRUEBA
 unicaPosicion :: Pos
 unicaPosicion = Simple {line = 0, col = 0}
