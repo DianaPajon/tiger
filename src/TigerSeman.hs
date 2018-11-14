@@ -238,13 +238,21 @@ hacerHead b [] = []
 -- las definiciones de tipo a la gramatica interna del compilador.
 -- Los tipos estan referidos, 
 preTy :: (Manticore w) => (Symbol, Ty, Pos) -> w (Symbol, Tipo)
-preTy (sim,(NameTy s),p)      = return (sim, TTipo s)
-preTy (sim,(RecordTy flds),p) = do unique <- ugen
-                                   return (sim, TRecord (P.map (\(sim,NameTy s) -> (sim, RefRecord s, posicion sim flds))  flds) unique)
-                                where
-                                  posicion s ((s', t):xs) = if s == s' then 0 else 1 + posicion s xs
-preTy (sim,(ArrayTy s),p)     = do unique <- ugen
-                                   return (sim, TArray (TTipo s) unique)
+preTy (sim,(NameTy s),p)      = addpos (return (sim, TTipo s)) p
+preTy (sim,(RecordTy flds),p) = 
+  flip addpos p (
+    do
+      unique <- ugen
+      return (sim, TRecord (P.map (\(sim,NameTy s) -> (sim, RefRecord s, posicion sim flds))  flds) unique)
+  ) where
+      posicion s ((s', t):xs) = if s == s' then 0 else 1 + posicion s xs    
+
+preTy (sim,(ArrayTy s),p)     = 
+  flip addpos p (
+    do
+      unique <- ugen
+      return (sim, TArray (TTipo s) unique)
+  )
 
 
 -- Dada una lista de definiciones de la función anterior, detecta que tipos se refieren entre si
@@ -304,7 +312,7 @@ fromTy _ = P.error "no debería haber una definición de tipos en los args..."
 -- Tip2: Van a tener que pensar bien que hacen. Ver transExp (LetExp...)
 -- ** transDecs :: (MemM w, Manticore w) => [Dec] -> w a -> w a
 transDecs' :: (MemM w, Manticore w) => [Dec] -> w (BExp,Tipo) -> w ((BExp,Tipo),[BExp])
-transDecs' ((VarDec nm escap t init p): xs) exp = do 
+transDecs' ((VarDec nm escap t init p): xs) exp = flip addpos p (do 
   nil <- nilExp
   acceso <- allocLocal (escap == Escapa)
   nivel <- getActualLevel
@@ -316,13 +324,12 @@ transDecs' ((VarDec nm escap t init p): xs) exp = do
                     Just s -> getTipoT s
                     Nothing -> return tipoInit
   iguales <- tiposIguales tipoExp tipoDeclarado
-
   case (iguales, tipoDeclarado == TNil) of
     (True, False) -> do 
       (cuerpo, inits) <- insertValV nm (tipoDeclarado, acceso, fromIntegral nivel) (transDecs' xs  exp)
       return (cuerpo, asignacion : inits)
     (True, True) ->  derror $ pack "Se debe declarar el tipo para poder asignar nil"
-    (False, _) -> derror $ pack "El tipo declarado no conicide con el de la expresión dada"
+    (False, _) -> derror $ pack "El tipo declarado no conicide con el de la expresión dada" )
 
 transDecs' ((TypeDec xs): xss)             exp = do
   tys <- mapM preTy xs
@@ -332,7 +339,8 @@ transDecs' ((TypeDec xs): xss)             exp = do
   if ((not $ hayCiclos clean) && noRepiten)
   then do let decs = P.map (\(s,t) ->(s,arreglarLazy t clean)) clean
           P.foldr (\(s,t) e -> insertTipoT s t e) (transDecs' xss exp) decs
-  else derror $ pack "Tipos mal declarados"
+  else do let (_,_,p) = head xs
+          addpos (derror $ pack "Bloque de tipos mal declarados") p
 transDecs' ((FunctionDec fs) : xs)          exp = do 
   let noRepiten = diferentes $ P.map (\(s,_,_,_,_) -> s) fs
   if(noRepiten)
@@ -340,7 +348,8 @@ transDecs' ((FunctionDec fs) : xs)          exp = do
       funEntries <- mapM mkFunEntry fs
       funs <- mapM (transFun funEntries) fs --Ignoro los cuerpos de las definiciones por ahora.
       P.foldr (\(s,fentry) e -> insertFunV s fentry e)  (transDecs' xs exp) (actualizar funEntries funs)
-    else derror $ pack "Funciones mal declaradas"
+    else let (_,_, _, _, p) = head fs 
+          in addpos (derror $ pack "Hay varias funciones con el mismo nombre declaradas en un solo bloque.") p
   where actualizar [] xs = []
         actualizar ((s,(l,a,b,c,d)):es) ((ci,t,l'):ts) = (s,(l',a,b,c,d)) : actualizar es ts
 transDecs' [] exp = do
@@ -356,27 +365,29 @@ transDecs decs cuerpo = do
 type FunDec = (Symbol ,[(Symbol, Escapa, Ty)], Maybe Symbol, Exp, Pos)
 
 transFun :: (MemM w, Manticore w) => [(Symbol, FunEntry)] -> FunDec -> w (BExp, Tipo, Level)
-transFun fs (nombre, args, mt, body, _) = do 
-  let nivelFun = nivelFuncion fs nombre
-  pushLevel nivelFun
-  args <- mapM mkArgEntry args
-  let expresionConArgs = P.foldr (\(s,argentry) e  -> insertValV s argentry e) (transExp body) args
-  (cuerpo , tipo) <- P.foldr (\(s,fentry) e -> insertFunV s fentry e) expresionConArgs fs
-  let isproc = if mt == Nothing then IsProc else IsFun
-  intermedio <- envFunctionDec nivelFun (functionDec cuerpo nivelFun isproc)
-  levelConArgs <- topLevel
-  popLevel
-  case mt of 
-    Nothing -> do esProc <- tiposIguales TUnit tipo
-                  if esProc then return (intermedio,TUnit,levelConArgs) else derror $ pack "Un procedimiento retorna un valor"
-    Just t -> do tipoEsperado <- getTipoT t
-                 iguales <- tiposIguales tipoEsperado tipo
-                 if iguales
-                  then return (intermedio, tipo, levelConArgs)
-                  else derror $ pack "La función no tipa"
-    where 
-      nivelFuncion ((nombre, (level,_,_,_,_)):funs) s = if s == nombre then level else nivelFuncion funs s
-
+transFun fs (nombre, args, mt, body, p) = 
+  flip addpos p (
+    do 
+      let nivelFun = nivelFuncion fs nombre
+      pushLevel nivelFun
+      args <- mapM mkArgEntry args
+      let expresionConArgs = P.foldr (\(s,argentry) e  -> insertValV s argentry e) (transExp body) args
+      (cuerpo , tipo) <- P.foldr (\(s,fentry) e -> insertFunV s fentry e) expresionConArgs fs
+      let isproc = if mt == Nothing then IsProc else IsFun
+      intermedio <- envFunctionDec nivelFun (functionDec cuerpo nivelFun isproc)
+      levelConArgs <- topLevel
+      popLevel
+      case mt of 
+        Nothing -> do esProc <- tiposIguales TUnit tipo
+                      if esProc then return (intermedio,TUnit,levelConArgs) else derror $ pack "Un procedimiento retorna un valor"
+        Just t -> do tipoEsperado <- getTipoT t
+                     iguales <- tiposIguales tipoEsperado tipo
+                     if iguales
+                       then return (intermedio, tipo, levelConArgs)
+                       else derror $ pack "La función no tipa"
+  )
+ where 
+  nivelFuncion ((nombre, (level,_,_,_,_)):funs) s = if s == nombre then level else nivelFuncion funs s
 mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> w (Symbol, ValEntry)
 mkArgEntry (s,e,t) = do
   acceso <- allocArg (e == Escapa)
@@ -490,8 +501,8 @@ transExp(AssignExp var val p) = flip addpos p (do
   let asignable = tipoVar /= TInt RO
   iguales <- tiposIguales tipoVar tipoExp
   case (asignable,iguales) of
-    (False,_) -> addpos (derror $ pack ("La variable " ++ show var ++ " es de solo lectura")) p
-    (True, False) -> derror $ pack ("Los tipos no coinciden en la asignaciòn, linea " ++ show p)
+    (False,_) -> derror $ pack ("La variable " ++ show var ++ " es de solo lectura")
+    (True, False) -> derror $ pack ("Los tipos no coinciden en la asignaciòn" )
     (True, True) -> do 
       asignacion <- assignExp variable valor
       return (asignacion, TUnit)

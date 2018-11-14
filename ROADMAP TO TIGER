@@ -1,7 +1,11 @@
--Revisar en 386 que registros son pisados por las llamadas, y que registro se debería devolver.
--Hacer que todo falle lindo, con errores claros.
 -Avanzar con el compilador hasta terminarlo.
-
+Fechas:
+15 de Noviembre: Escupiendo código, ya echo el emisor de código con llamadas incluidas. Hacer procEntryExit, prologo y epílogo de funciones
+16 de Noviembre: Leido liveness y allocation.
+20 de Noviembre: Hecho liveness
+1 de Diciembre: Hecho allocation
+8 de Diciembre: Armado, hablar para entregar
+15 de Diciembre: Compilador TERMINADO. Completito.
 
 Recordar:
 -Estamos traduciendo EXPRESIONES de la forma (1 < 3) como Cx. Para esto tuvimos que modificar el seq

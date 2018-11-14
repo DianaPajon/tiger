@@ -7,15 +7,28 @@ import           TigerSymbol
 
 import           Prelude     hiding (exp)
 
---
+--Implementación modificada para dar los detalles de IA-32.
 
 -- | Frame pointer
 fp :: Temp
-fp = pack "FP"
+fp = pack "ebp"
 
 -- | Stack pointer
 sp :: Temp
-sp = pack "SP"
+sp = pack "esp"
+
+eax :: Temp
+eax = pack "eax"
+
+ebx :: Temp
+ebx = pack "ebx"
+
+ecx :: Temp
+ecx = pack "ecx"
+
+edx :: Temp
+edx = pack "edx"
+
 
 -- | Return value
 rv :: Temp
@@ -44,7 +57,9 @@ localsInicial = 0
 
 calldefs = [rv]
 specialregs = [rv, fp, sp]
-
+calleesaves = [eax,ecx,edx]
+callersaves = [ebx,fp,sp]
+argregs = [] --Todos los parametros a stack.
 data Access = InFrame Int | InReg Temp
     deriving Show
 data Frag = Proc Stm Frame | AString Label [Symbol]
