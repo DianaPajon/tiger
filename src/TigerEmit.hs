@@ -1,9 +1,12 @@
-module TigerEmit where
+module TigerEmit (codegen) where
+
 import Prelude as P
 import TigerTree
 import TigerTemp
 import Data.Text
 import TigerFrame
+import Control.Monad.State
+
 
 data Assem =
     Oper {
@@ -24,8 +27,6 @@ data Assem =
 
 class TLGenerator w => Emisor w where
     emit :: Assem -> w ()
-    getCode :: w [Assem]
-    clearCode :: w () --Limpia el assembly generado
 
 
 
@@ -277,12 +278,9 @@ munchStm (Seq s1 s2) = do
     munchStm s2
     return ()
 
-munchFrag (Proc stmt frame) = munchProc stmt frame
-munchFrag (AString l s) = munchString l s
 
 --Sería algo así como el codegen del libro
 munchProc cuerpo frame = do
-    clearCode
     --primero, preparo el stack.
     emit Oper {
         oassem = "push `s0"
@@ -325,8 +323,32 @@ munchProc cuerpo frame = do
        ,odest = [sp] --Popea la instrucción
        ,ojump = Nothing
     }
-    codigo <- getCode
-    clearCode
-    return codigo
+    
   where localsSize = actualLocal frame * localsGap
-munchString = undefined --TODO
+
+--Implementación del emisor de código
+
+data EstadoEmisor = Estado {
+    assembly :: [Assem],
+    unique :: Integer
+}
+
+type Emit = State EstadoEmisor
+
+instance TLGenerator Emit where
+    newTemp = do estado <- get
+                 let u = unique estado
+                 put estado{unique = u + 1}
+                 return $ pack ("Temp_" ++ show u)
+    newLabel = do estado <- get
+                  let u = unique estado
+                  put estado{unique = u + 1}
+                  return $ pack ("Label_" ++ show u)
+
+instance Emisor Emit where 
+    emit ins = do
+        e <- get
+        put  e{assembly = assembly e ++ [ins]}
+
+codegen :: Stm -> Frame -> Integer -> [Assem] 
+codegen cuerpo frame unique = assembly $ snd $  runState (munchProc cuerpo frame) (Estado{unique = unique, assembly = []})

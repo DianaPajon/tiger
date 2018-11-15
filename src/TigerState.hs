@@ -26,8 +26,7 @@ data Estado =
     ST {
             scope :: Scope,
             unique :: Integer, 
-            frags :: [Frag],
-            assembly :: [Assem]
+            frags :: [Frag]
     }
 
 data Scope = 
@@ -88,8 +87,7 @@ initConf =
             
             },
             unique = 0,
-            frags = [],
-            assembly = []
+            frags = []
         }
 
 type TigerState = StateT Estado (Either [Errores])
@@ -148,11 +146,11 @@ instance TLGenerator TigerState where
     newTemp = do estado <- get
                  let u = unique estado
                  put estado{unique = u + 1}
-                 return $ T.pack ("Temp" ++ show u)
+                 return $ T.pack ("Temp_" ++ show u)
     newLabel = do estado <- get
                   let u = unique estado
                   put estado{unique = u + 1}
-                  return $ T.pack ("Label" ++ show u)
+                  return $ T.pack ("Label_" ++ show u)
  
 --Funciones auxiliares para implementar manticore                            
 insertValV' :: Symbol -> ValEntry -> Scope -> Scope
@@ -256,19 +254,8 @@ downLvl' ((MkLI f l):(MkLI f' l'):ls) i = if l' == i then Just l else downLvl' (
 downLvl' ((MkLI f l):[]) i = if l == i then Just l else Nothing
 downLvl' [] i = Nothing
 
-instance Emisor TigerState where
-    emit instr = do
-        estado <- get
-        let instrucciones = assembly estado
-        put estado{assembly = instrucciones ++ [instr]}
-    getCode = do
-        estado <- get
-        return $ assembly estado
-    clearCode = do
-        estado <- get
-        put estado{assembly = []}
 
-
+--Implementación del emisor de código
 -- Todo, da como resultado el assembler del programa. 
 tiger :: TigerAbs.Exp -> TigerState String
 tiger programa = do
