@@ -313,7 +313,7 @@ instance (MemM w) => IrGen w where
                 Runtime -> externalCall (T.unpack name) --Podría obviarse, pero por limpieza lo dejo.
                 Propia -> Call (Name name)
         -- Por ahora ignoro el nivel, y pongo el SL como FP.
-        args' <- mapM unEx (Ex (Temp fp) : args)
+        args' <- mapM unEx args
         if isproc == IsProc
         then return $ Nx $ ExpS $ callMethod args'
         else return $ Ex $ Eseq (ExpS $ callMethod args') (Temp rv)

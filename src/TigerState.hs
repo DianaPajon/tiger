@@ -92,8 +92,6 @@ initConf =
 
 type TigerState = StateT Estado (Either [Errores])
 
-   
-
 instance Demon TigerState where
     --derror :: Symbol -> w a
     derror s = lift (Left [(Error s)])

@@ -388,7 +388,8 @@ transFun fs (nombre, args, mt, body, p) =
   )
  where 
   nivelFuncion ((nombre, (level,_,_,_,_)):funs) s = if s == nombre then level else nivelFuncion funs s
-mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> w (Symbol, ValEntry)
+
+  mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> w (Symbol, ValEntry)
 mkArgEntry (s,e,t) = do
   acceso <- allocArg (e == Escapa)
   tipo <- fromTy t
@@ -398,7 +399,7 @@ mkArgEntry (s,e,t) = do
 mkFunEntry :: (MemM w, Manticore w) => FunDec -> w (Symbol, FunEntry)
 mkFunEntry (nombre,args,mtipo,cuerpo,pos) = do 
   nivelPadre <- topLevel
-  let formals = True : (P.map (\(a,b,c) -> b == Escapa) args) -- Agrego el static link
+  let formals = (P.map (\(a,b,c) -> b == Escapa) args) 
   tipos <- mapM transTy (P.map (\(a,b,c) -> c) args)
   label <- newLabel
   tipo <- case mtipo of

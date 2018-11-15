@@ -16,6 +16,11 @@ Recordar:
 Pendientes:
 -munchString, para crear los label de los strings.
 
+Testear:
+-Que el static link funcione, se implementa a bajo nivel, el compilador casi ni lo ve... 
+ pero lo supone en el codigo intermedio. FP apunta a static link.
+-Campos de records: Que se definan y se usen independientes del orden. Que se puedan acceder bien.
+
 ----------------------
 Chanchada para detectar los ciclos ilegales en las definiciones de tipo. Complejidad n^2.
 
