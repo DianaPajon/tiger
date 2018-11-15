@@ -49,7 +49,7 @@ fpPrevLev :: Int
 fpPrevLev = 0
 
 argsGap = wSz
-localsGap = 4
+localsGap = wSz
 
 argsInicial = 0
 regInicial = 1
@@ -116,7 +116,7 @@ allocArg fr False = do
 allocLocal :: (Monad w, TLGenerator w) => Frame -> Bool -> w (Frame, Access)
 allocLocal fr True =
     let actual = actualLocal fr
-        acc = InFrame $ actual + localsGap in
+        acc = InFrame $ actual * localsGap in
     return (fr{actualLocal= actual +1}, acc)
 allocLocal fr False = do
     s <- newTemp

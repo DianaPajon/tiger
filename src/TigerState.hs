@@ -111,7 +111,8 @@ changeScope f m = do sta <- get
                      --Aplico el nuevo scope
                      put (sta{scope = f $ scope sta})
                      a <- m
-                     put sta
+                     nuevoEstado <- get
+                     put (nuevoEstado{scope = scope sta})
                      return a
                 
 --Implementacion de manticore
@@ -263,6 +264,9 @@ instance Emisor TigerState where
     getCode = do
         estado <- get
         return $ assembly estado
+    clearCode = do
+        estado <- get
+        put estado{assembly = []}
 
 
 -- Todo, da como resultado el assembler del programa. 

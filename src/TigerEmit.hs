@@ -25,6 +25,7 @@ data Assem =
 class TLGenerator w => Emisor w where
     emit :: Assem -> w ()
     getCode :: w [Assem]
+    clearCode :: w () --Limpia el assembly generado
 
 
 
@@ -276,8 +277,56 @@ munchStm (Seq s1 s2) = do
     munchStm s2
     return ()
 
-munchFrag (Proc stmt frame) = munchProc stmt Frame
+munchFrag (Proc stmt frame) = munchProc stmt frame
 munchFrag (AString l s) = munchString l s
 
-munchProc stmt frame = undefined
-munchString = undefined
+--Sería algo así como el codegen del libro
+munchProc cuerpo frame = do
+    clearCode
+    --primero, preparo el stack.
+    emit Oper {
+        oassem = "push `s0"
+       ,osrc = [fp]
+       ,odest = [sp]
+       ,ojump = Nothing
+    }
+    emit Oper {
+        oassem = "mov `s0, `d0"
+       ,osrc = [sp]
+       ,odest = [fp]
+       ,ojump = Nothing
+    }
+    --Luego reservo las variables locales
+    emit Oper {
+        oassem = "subl $" ++ show localsSize ++  ", `d0"
+       ,osrc = []
+       ,odest = [sp]
+       ,ojump = Nothing
+    }
+    munchStm cuerpo
+    --Ahora quito las variables locales
+    emit Oper {
+        oassem = "addl $" ++ show localsSize ++  ", `d0"
+       ,osrc = []
+       ,odest = [sp]
+       ,ojump = Nothing
+    }
+    --Y popeo el viejo ebp
+    emit Oper {
+        oassem = "pop `d0"
+       ,osrc = []
+       ,odest = [fp]
+       ,ojump = Nothing
+    }
+    --Finalmente, retorno
+    emit Oper{
+        oassem = "ret"
+       ,osrc = []
+       ,odest = [sp] --Popea la instrucción
+       ,ojump = Nothing
+    }
+    codigo <- getCode
+    clearCode
+    return codigo
+  where localsSize = actualLocal frame * localsGap
+munchString = undefined --TODO
