@@ -264,6 +264,18 @@ instance Emisor TigerState where
         estado <- get
         return $ assembly estado
 
+
+-- Todo, da como resultado el assembler del programa. 
+tiger :: TigerAbs.Exp -> TigerState String
+tiger programa = do
+    transExp programa
+    --canonizar
+    --agregar los fragments
+    --escupir codigo pre-ensamblador
+    --liveness
+    --register selection
+    return ""
+--
 --BEGIN CODIGO PRUEBA
 unicaPosicion :: Pos
 unicaPosicion = Simple {line = 0, col = 0}

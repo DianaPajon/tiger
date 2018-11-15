@@ -30,7 +30,7 @@ class TLGenerator w => Emisor w where
 
 munchArgs [] = return ()
 munchArgs (es) = do
-    t <- munchExp e
+    t <- munchExp $ P.last es
     emit Oper {
         oassem = "pushl `s0"
        ,osrc = [t]
@@ -38,7 +38,6 @@ munchArgs (es) = do
        ,ojump = Nothing
     }
     munchArgs $ P.init es
-  where e = P.last es
 --Maximum munch para ia32. 
 munchExp (Call (Name n) par) = do
     munchArgs par
@@ -47,6 +46,13 @@ munchExp (Call (Name n) par) = do
        ,osrc = []
        ,odest = eax:calldefs 
        ,ojump = Just [n]
+    }
+    --al volver, lo primero es normalizar los argumentos. Ya call-ret eliminó el return value.
+    emit Oper {
+        oassem = "addl $" ++ (show (P.length par * wSz)) ++ ", `d0"
+       ,osrc = []
+       ,odest = [sp]
+       ,ojump = Nothing
     }
     return eax --Return value
 --Addressing con offset, para ahorrar una operacion
@@ -269,3 +275,9 @@ munchStm (Seq s1 s2) = do
     munchStm s1
     munchStm s2
     return ()
+
+munchFrag (Proc stmt frame) = munchProc stmt Frame
+munchFrag (AString l s) = munchString l s
+
+munchProc stmt frame = undefined
+munchString = undefined

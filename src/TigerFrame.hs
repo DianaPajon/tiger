@@ -32,7 +32,7 @@ edx = pack "edx"
 
 -- | Return value
 rv :: Temp
-rv = pack "RV"
+rv = pack "eax"
 
 -- | Word size in bytes
 wSz :: Int

@@ -1,4 +1,3 @@
--Avanzar con el compilador hasta terminarlo.
 Fechas:
 15 de Noviembre: Escupiendo código, ya echo el emisor de código con llamadas incluidas. Hacer procEntryExit, prologo y epílogo de funciones
 16 de Noviembre: Leido liveness y allocation.
@@ -13,6 +12,9 @@ Recordar:
 -Por alguna razon, los accesos no tienen offsets de wSz, se incrementan de a 1. Recordar. ·    
 -Puede haber un record con dos campos del mismo nombre, ¿Que pasaría en tal caso?.
 -Meterse con el canonizador de código intermedio, entender que hace y si me sirve.
+
+Pendientes:
+-munchString, para crear los label de los strings.
 
 ----------------------
 Chanchada para detectar los ciclos ilegales en las definiciones de tipo. Complejidad n^2.
