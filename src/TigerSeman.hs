@@ -11,7 +11,7 @@ import           TigerUnique
 -- Segunda parte imports:
 import           TigerTemp
 import           TigerTrans
-import           TigerFrame                 (Frag(Proc))
+import           TigerFrame                 (Frag)
 
 -- Monads
 import qualified Control.Conditional        as C
@@ -584,9 +584,6 @@ transProg programa = do
   (programBody,tipoPrograma) <- transExp programa
   [level] <- topLevel
   proc <- functionDec  programBody [level] IsProc
-  body <- unNx proc
-  let frame = getFrame' level
-  pushFrag $ Proc body frame
   frags <- getFrags
   return frags
 
