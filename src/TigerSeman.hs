@@ -583,7 +583,8 @@ transProg :: (MemM w, Manticore w) => Exp -> w [Frag]
 transProg programa = do
   (programBody,tipoPrograma) <- transExp programa
   [level] <- topLevel
-  body <- functionDec  programBody [level] IsProc
+  proc <- functionDec  programBody [level] IsProc
+  body <- unNx proc
   let frame = getFrame' level
   pushFrag $ Proc body frame
   frags <- getFrags
