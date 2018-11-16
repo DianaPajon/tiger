@@ -11,6 +11,7 @@ import           TigerUnique
 -- Segunda parte imports:
 import           TigerTemp
 import           TigerTrans
+import           TigerFrame                 (Frag(Proc))
 
 -- Monads
 import qualified Control.Conditional        as C
@@ -29,7 +30,6 @@ import           Prelude                    as P
 -- Debugging. 'trace :: String -> a -> a'
 -- imprime en pantalla la string cuando se ejecuta.
 import           Debug.Trace                (trace)
-
 -- * Análisis Semántico, aka Inferidor de Tipos
 
 -- ** Notas :
@@ -585,6 +585,8 @@ transProg programa = do
   body <- unNx programBody
   [level] <- topLevel
   let frame = getFrame' level
-  pushFrag $ newProc body frame
+  pushFrag $ Proc body frame
   frags <- getFrags
   return frags
+
+runSeman = undefined
