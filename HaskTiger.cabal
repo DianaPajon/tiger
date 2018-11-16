@@ -94,7 +94,27 @@ test-suite HaskTiger-test
                        , template-haskell
                        , ansi-terminal
                        , directory
-  other-modules: Tools TigerSeman TigerTrans
+  other-modules: Tools 
+                 TigerSeman 
+                 TigerTrans                  
+                 State
+                 TigerAbs
+                 TigerCanon
+                 TigerEmit
+                 TigerErrores
+                 TigerEscap
+                 TigerFrame
+                 TigerLexer
+                 TigerParser
+                 TigerPretty
+                 TigerPrettyIr
+                 TigerSres
+                 TigerState
+                 TigerSymbol
+                 TigerTemp
+                 TigerTips
+                 TigerTree
+                 TigerUnique
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-extensions: FlexibleInstances
                   , TypeFamilies
