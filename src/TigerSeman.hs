@@ -582,8 +582,8 @@ transExp(ArrayExp sn cant init p) = do
 transProg :: (MemM w, Manticore w) => Exp -> w [Frag]
 transProg programa = do
   (programBody,tipoPrograma) <- transExp programa
-  body <- unNx programBody
   [level] <- topLevel
+  body <- functionDec  programBody [level] IsProc
   let frame = getFrame' level
   pushFrag $ Proc body frame
   frags <- getFrags
