@@ -21,6 +21,11 @@ import           Data.Ord            hiding (EQ, GT, LT)
 
 import           Debug.Trace
 
+-- | Tipo frag, para que lo vea Seman
+type Frag = F.Frag
+newProc :: Stm -> F.Frame -> F.Frag
+newProc s f = Proc s f
+
 -- | Tipo de datos representando si es un procedimiento o una función
 data IsProc = IsProc | IsFun
     deriving Eq
@@ -186,8 +191,8 @@ class (Monad w, TLGenerator w, Demon w) => MemM w where
     -- Recuerden que los fragmentos son pedazos de código intermedio que se van
     -- a ejecutar. Y estos son un efecto lateral porque todavía no sabemos bien
     -- cómo van a ser ejecutados (eso se decide más adelante)
-    pushFrag  :: Frag -> w ()
-    getFrags  :: w [Frag]
+    pushFrag  :: TigerTrans.Frag -> w ()
+    getFrags  :: w [TigerTrans.Frag]
 
 -- | Generación de código intermedio.
 -- Cada construcción del (AST)[src/TigerAbs.hs] la consumiremos

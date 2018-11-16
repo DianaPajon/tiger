@@ -579,4 +579,12 @@ transExp(ArrayExp sn cant init p) = do
   
 
 
-runSeman = undefined
+transProg :: (MemM w, Manticore w) => Exp -> w [Frag]
+transProg programa = do
+  (programBody,tipoPrograma) <- transExp programa
+  body <- unNx programBody
+  [level] <- topLevel
+  let frame = getFrame' level
+  pushFrag $ newProc body frame
+  frags <- getFrags
+  return frags

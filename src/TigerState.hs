@@ -26,6 +26,8 @@ data Estado =
     ST {
             scope :: Scope,
             unique :: Integer, 
+            level :: Level,
+            actualLevel :: Int,
             frags :: [Frag]
     }
 
@@ -33,8 +35,6 @@ data Scope =
     SC {
         vEnv :: M.Map Symbol EnvEntry, 
         tEnv :: M.Map Symbol Tipo, 
-        level :: Level,
-        actualLevel :: Int,
         salidas :: [Maybe Label]
     }
 -- Función para mostrar el entorno
@@ -52,7 +52,7 @@ mostrarEnv e = "{" ++
 instance Show Estado where
     show estado = "\nEntorno de tipos: \n\n" ++ (mostrarEnv $ tEnv $ scope estado) ++ "\n" ++
                   "Entorno de variables: \n\n" ++ (mostrarEnv $ vEnv $ scope estado) ++ "\n" ++
-                  "Level: \n\n" ++ show (level $ scope estado) ++ "\n" ++ 
+                  "Level: \n\n" ++ show (level estado) ++ "\n" ++ 
                   "Frags: \n\n" ++ show (frags estado)
 
 -- Tipo que modela los errores
@@ -79,13 +79,13 @@ initConf =
                         ]
                     ,
                 -- level indica el nivel de anidamiento a donde llega el código, es decir, la funcion que estamos compilando.
-                level = newLevel outermost (pack "main") [True], --Por ahora sin argumentos, true por el static link a outer.
-                -- actualLevel se refiere al scope que estamos viendo en la variable actual,
-                -- lo podemos usar para navegar los lvls.
-                actualLevel = 0,
                 salidas = []
             
             },
+            level = newLevel outermost (pack "main") [], --Por ahora sin argumentos, true por el static link a outer.
+            -- actualLevel se refiere al scope que estamos viendo en la variable actual,
+            -- lo podemos usar para navegar los lvls.
+            actualLevel = 0,
             unique = 0,
             frags = []
         }
@@ -189,7 +189,7 @@ getTipoT' s e = (M.lookup s (tEnv $ scope e))
 --TODO: Este código está mal, creo que upLvl debería mover el actualLevel nomás, y el resto
 instance MemM TigerState where 
     getActualLevel = do estado <- get
-                        return $ actualLevel $ scope estado
+                        return $ actualLevel  estado
 {-    upLvl = do estado <- get
                let niveles = level estado
                let actual = actualLevel estado
@@ -223,16 +223,15 @@ instance MemM TigerState where
             (s:ss) -> put estado{scope = (scope estado){salidas = ss}}
     pushLevel [] = internal $ T.pack "Se quiere agregar un lvl vacío"
     pushLevel lvl = do estado <- get --"Push", ponele. En la práctica va a ser un push. "Push" es un Frame, no un lvl.
-                       put estado { scope = (scope estado){
+                       put estado{ 
                         level = lvl,
                         actualLevel = getNlvl lvl
                        }
-                    }
     popLevel = do estado <- get
-                  let (l:ls) = level $ scope estado
-                  put estado{scope = (scope estado){level = ls}}
+                  let (l:ls) = level estado
+                  put estado{level = ls}
     topLevel = do estado <- get
-                  return $ level $ scope estado
+                  return $ level estado
     pushFrag f = do
         estado <- get
         let fs = frags estado
