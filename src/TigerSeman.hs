@@ -389,7 +389,7 @@ transFun fs (nombre, args, mt, body, p) =
  where 
   nivelFuncion ((nombre, (level,_,_,_,_)):funs) s = if s == nombre then level else nivelFuncion funs s
 
-  mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> w (Symbol, ValEntry)
+mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> w (Symbol, ValEntry)
 mkArgEntry (s,e,t) = do
   acceso <- allocArg (e == Escapa)
   tipo <- fromTy t

@@ -247,7 +247,9 @@ munchStm (CJump op e1 e2 tl fl) = do
         ,odest = []
         ,ojump = Just [tl]
     }
-    --En caso de que no pase nada, salto al target falso.
+    --En caso de que no pase nada, salto al target falso. 
+    --En código canonizado... esto podría ser saltar a la siguiente instrucción- 
+    --Por ahora lo dejo
     emit Oper {
         oassem = "jmp " ++ falseDest
         ,osrc = []
