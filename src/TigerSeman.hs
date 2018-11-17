@@ -582,8 +582,8 @@ transExp(ArrayExp sn cant init p) = do
 transProg :: (MemM w, Manticore w) => Exp -> w [Frag]
 transProg programa = do
   (programBody,tipoPrograma) <- transExp programa
-  [level] <- topLevel
-  proc <- functionDec  programBody [level] IsProc
+  level <- topLevel
+  proc <- functionDec  programBody level IsProc
   frags <- getFrags
   return frags
 

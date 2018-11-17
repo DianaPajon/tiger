@@ -251,18 +251,6 @@ downLvl' ((MkLI f l):(MkLI f' l'):ls) i = if l' == i then Just l else downLvl' (
 downLvl' ((MkLI f l):[]) i = if l == i then Just l else Nothing
 downLvl' [] i = Nothing
 
-
---Implementación del emisor de código
--- Todo, da como resultado el assembler del programa. 
-tiger :: TigerAbs.Exp -> TigerState String
-tiger programa = do
-    transExp programa
-    --canonizar
-    --agregar los fragments
-    --escupir codigo pre-ensamblador
-    --liveness
-    --register selection
-    return ""
 --
 --BEGIN CODIGO PRUEBA
 unicaPosicion :: Pos
@@ -279,35 +267,8 @@ programaPrueba =
       (StringExp "hola" unicaPosicion)
       unicaPosicion
   
-runTranslate :: TigerAbs.Exp -> Either [Errores] ((BExp, Tipo),Estado)
-runTranslate expre = runStateT (transExp expre :: TigerState (BExp, Tipo))  initConf
+runTranslate :: TigerAbs.Exp -> Either [Errores] ([Frag],Estado)
+runTranslate expre = runStateT (transProg expre :: TigerState [Frag])  initConf
 
 
-
-getStm :: TigerAbs.Exp -> Tree.Stm
-getStm programa = 
-    let 
-        bexp = either (\s -> undefined) (\((a,b),c) -> a ) $ runTranslate programa
-        statement = either (\s -> undefined) (\(a,c) -> a ) $ prSt
-        prSt = runStateT (unNx bexp :: TigerState Tree.Stm) initConf
-    in  statement
-
-
-getExp :: TigerAbs.Exp -> Tree.Exp
-getExp programa = 
-        let 
-            bexp = either (\s -> undefined) (\((a,b),c) -> a ) $ runTranslate programa
-            expresion = either (\s -> undefined) (\(a,c) -> a ) $ prEx
-            prEx = runStateT (unEx bexp :: TigerState Tree.Exp) initConf
-        in  expresion
-    
-    
-
-prettyTranslate programa = 
-    let 
-        bexp = either (\s -> undefined) (\((a,b),c) -> a ) $ runTranslate programa
-    in renderBIr bexp
-
-showVEnv env = putStrLn $ show (vEnv env)
-showTEnv env = putStrLn $ show (tEnv env)
 --END CODIGO PRUEBA
