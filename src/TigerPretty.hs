@@ -41,8 +41,8 @@ prettyDec (FunctionDec f) = vcat $ map functionDec f
       hang (text "function " <> (text $ unpack s) <> (parens $ prettyField f) <> text " : " <> (text $ unpack r) <> (text " = ")) tabWidth (prettyExp e)
     functionDec (s, f, Nothing, e, _) = hang (text "function " <> (text $ unpack s) <> (parens $ prettyField f) <> (text " = ")) tabWidth (prettyExp e)
 
-prettyDec (VarDec s _ (Just r) e _) = (text $ unpack s) <> text " : " <> (text $ unpack r) <> text " = " <> prettyExp e
-prettyDec (VarDec s _ Nothing e _) = (text $ unpack s) <> text " = " <> prettyExp e
+prettyDec (VarDec s esc (Just r) e _) = (text $ unpack s) <> text " : " <> (text $ unpack r) <> text " = " <> prettyExp e <> text (if (esc == Escapa) then " - escapa" else " - no escapa")
+prettyDec (VarDec s esc Nothing e _) = (text $ unpack s) <> text " = " <> prettyExp e <> text (if (esc == Escapa) then " - escapa" else " - no escapa")
 prettyDec (TypeDec f) = vcat $ map typeDec f
   where
     typeDec (s, ty, _) = text "type " <> (text $ unpack s) <> text " = " <> prettyTy ty

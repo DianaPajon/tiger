@@ -51,5 +51,11 @@ getProgram dir file = unsafePerformIO (readFile (dir ++ '/' : file))
 right (Right a) = a
 frame (Proc stmt frame) = frame
 
+prettyAst dir file =
+    either 
+    (\err -> Left $ show err) 
+    (\exp -> either (\err -> Left $ show err) (\exp -> Right $ renderExp exp) $ E.calcularEEsc exp) 
+    (parse programa)
+     where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 prettyIr dir file fragNumber = putStrLn $ renderFrag $ (frags $ right $ dirtyTest dir file) !! fragNumber
 prettyFrame dir file fragNumber = frame $ (frags $ right $ dirtyTest dir file) !! fragNumber

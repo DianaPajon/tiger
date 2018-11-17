@@ -2,22 +2,20 @@
 /* define a recursive function */
 let
   var a := 0
-  
-  var b := 3
 
-  var c := 5
+  var b := 0
+  
   /* calculate n! */
-  function fact (n : int,  m : int) : int =
+  function fact (n : int) : int =
     let
         var a := 0
-
-        var b := 34
     in 
+        b := 34;
         if  a = n /* Tiene que estar en el frame, negativo a y positivo n */
         then 1
-        else a * fact (a - 1,4)
+        else a * fact (a - 1)
     end
 in
   a := 10; /* Tiene que estar en el frame. Primer variable*/
-  fact (a,35)
+  fact (a)
 end
