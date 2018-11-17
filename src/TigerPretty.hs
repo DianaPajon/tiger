@@ -47,6 +47,11 @@ prettyDec (TypeDec f) = vcat $ map typeDec f
   where
     typeDec (s, ty, _) = text "type " <> (text $ unpack s) <> text " = " <> prettyTy ty
 
+prettyRecord [] = error "Caso imposible"
+prettyRecord ((sim,exp):[]) = text (unpack sim) <> text " : " <> prettyExp exp
+prettyRecord ((sim,exp):rs) = text (unpack sim) <> text  " : " <> prettyExp exp <> text ", " <> prettyRecord rs
+
+
 prettyExp :: Exp -> Doc
 prettyExp (VarExp v _) = prettyVar v
 prettyExp (UnitExp _) = text "()"
@@ -55,7 +60,7 @@ prettyExp (IntExp i _) = text $ show i
 prettyExp (StringExp s _) = doubleQuotes $ text s
 prettyExp (CallExp s args _) = text (unpack s) <> (parens $ hcat $ punctuate comma $ map prettyExp args)
 prettyExp (OpExp e1 op e2 _) = prettyExp e1 <> prettyOp op <> prettyExp e2
-prettyExp (RecordExp r n _) = error "COMPLETAR PRINTER"
+prettyExp (RecordExp r n _) = text (unpack n) <> text "{" <> prettyRecord r <> text "}"
 prettyExp (SeqExp e _) = parens $ vcat $ punctuate semi (map prettyExp e)
 prettyExp (AssignExp v e _) = prettyVar v <> text " = " <> prettyExp e
 prettyExp (IfExp e e1 (Just e2) _) = (hang (text "if " <> prettyExp e <> text " then ") tabWidth (prettyExp e1)) $$ text "else " <> prettyExp e2
