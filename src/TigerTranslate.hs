@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
-module TigerState where
+module TigerTranslate where
 import           TigerSeman
 import           TigerTips
 import           TigerAbs

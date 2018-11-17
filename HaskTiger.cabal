@@ -39,7 +39,7 @@ library
         -- Experimental
         , TigerInterp
         , TigerQQ
-        , TigerState
+        , TigerTranslate
       -- Tercer entrega. So vo.
         , TigerEmit
   build-depends:       base
@@ -109,7 +109,7 @@ test-suite HaskTiger-test
                  TigerPretty
                  TigerPrettyIr
                  TigerSres
-                 TigerState
+                 TigerTranslate
                  TigerSymbol
                  TigerTemp
                  TigerTips

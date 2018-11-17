@@ -1,5 +1,5 @@
 import TigerParser
-import TigerState
+import TigerTranslate
 import TigerTips
 import TigerTrans
 --For debuggin's sake

@@ -1,7 +1,9 @@
 Fechas:
-15 de Noviembre: Escupiendo código, ya echo el emisor de código con llamadas incluidas. Hacer procEntryExit, prologo y epílogo de funciones
-16 de Noviembre: Leido liveness y allocation.
-20 de Noviembre: Hecho liveness
+16 de Noviembre: Leido liveness . Hecho.
+16 de Noviembre:  Armar el esqueleto final y correr el test.
+17 de Noviembre:  Armar el esqueleto final y correr el test.
+19 de Noviembre: Hecho liveness. Tiene que salir facil, es cuestion de escribir bien las estructuras.
+20 de Noviembre: Leer allocation
 1 de Diciembre: Hecho allocation
 8 de Diciembre: Armado, hablar para entregar
 15 de Diciembre: Compilador TERMINADO. Completito.

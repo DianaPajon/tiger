@@ -14,7 +14,7 @@ import           TigerPretty
 import           TigerSeman
 import           TigerTemp
 import           TigerUnique
-import           TigerState
+import           TigerTranslate
 import           TigerTrans
 import           Text.Parsec           (runParser)
 
