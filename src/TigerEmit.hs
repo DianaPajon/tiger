@@ -61,41 +61,37 @@ munchExp (Call (Name n) par) = do
 munchExp (Mem (Binop Plus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
-    emit Oper {
-        oassem = "movl " ++ show i ++ "(`s0)" ++ ", `d0"
-       ,osrc = [src]
-       ,odest = [dest]
-       ,ojump = Nothing
+    emit Mov {
+        massem = "movl " ++ show i ++ "(`s0)" ++ ", `d0"
+       ,msrc = src
+       ,mdest = dest
     }
     return dest
 munchExp (Mem (Binop Plus (Const i) e1)) = do
     src <- munchExp e1
     dest <- newTemp
-    emit Oper {
-        oassem = "movl " ++ show i ++ "(`s0)" ++ ", `d0"
-       ,osrc = [src]
-       ,odest = [dest]
-       ,ojump = Nothing
+    emit Mov {
+        massem = "movl " ++ show i ++ "(`s0)" ++ ", `d0"
+       ,msrc = src
+       ,mdest = dest
     }
     return dest
 munchExp (Mem (Binop Minus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
-    emit Oper {
-        oassem = "movl " ++ show (-i) ++ "(`s0)" ++ ", `d0"
-       ,osrc = [src]
-       ,odest = [dest]
-       ,ojump = Nothing
+    emit Mov {
+        massem = "movl " ++ show (-i) ++ "(`s0)" ++ ", `d0"
+       ,msrc = src
+       ,mdest = dest
     }
     return dest
 munchExp (Mem (Binop Minus (Const i) e1)) = do
     src <- munchExp e1
     dest <- newTemp
-    emit Oper {
-        oassem = "movl " ++ show (-i) ++ "(`s0)" ++ ", `d0"
-       ,osrc = [src]
-       ,odest = [dest]
-       ,ojump = Nothing
+    emit Mov {
+        massem = "movl " ++ show (-i) ++ "(`s0)" ++ ", `d0"
+       ,msrc = src
+       ,mdest = dest
     }
     return dest
 --Ver si se puede sumar a un label.
@@ -130,11 +126,10 @@ munchExp (Binop oper e1 e2) = do
             }
             return t1
         Mul -> do 
-            emit Oper {
-                oassem = "movl %eax,t1"
-               ,osrc = [t1]
-               ,odest = [eax]
-               ,ojump = Nothing
+            emit Mov {
+                massem = "movl %eax,t1"
+               ,msrc = t1
+               ,mdest = eax
             }
             emit Oper {
                 oassem = "mul `s0"
@@ -144,11 +139,10 @@ munchExp (Binop oper e1 e2) = do
             }
             return eax
         Div -> do 
-            emit Oper {
-                oassem = "movl %eax,t1"
-               ,osrc = [t1]
-               ,odest = [eax]
-               ,ojump = Nothing
+            emit Mov {
+                massem = "movl %eax,t1"
+               ,msrc = t1
+               ,mdest = eax
             }
             emit Oper {
                 oassem = "div `s0"
@@ -178,9 +172,9 @@ munchExp (Mem (Const i)) = do
     dest <- newTemp
     emit Oper {
         oassem = "movl (" ++ show i ++ "), `d0"
-        ,odest = [dest]
-        ,osrc = []
-        ,ojump = Nothing
+       ,odest = [dest]
+       ,osrc = []
+       ,ojump = Nothing
     }
     return dest
 munchExp (Temp t) = return t
@@ -194,11 +188,10 @@ mucnhExp (Eseq s e) = do
 munchStm (Move (Mem e1) e2) = do
     t1 <- munchExp e1
     t2 <- munchExp e2
-    emit Oper {
-        oassem = "movl `s0, (`d0)"
-        ,osrc = [t2]
-        ,odest = [t1]
-        ,ojump = Nothing
+    emit Mov {
+        massem = "movl `s0, (`d0)"
+        ,msrc = t2
+        ,mdest = t1
     }
 --Otro caso particular, un label el el lado izquierdo de un move.
 munchStm (Move (Name l1) e2) = do
@@ -214,11 +207,10 @@ munchStm (Move (Name l1) e2) = do
 munchStm (Move e1 e2) = do
     t2 <- munchExp e2
     t1 <- munchExp e1
-    emit Oper {
-        oassem = "movl `s0, `d0"
-        ,osrc = [t2]
-        ,odest = [t1]
-        ,ojump = Nothing
+    emit Mov {
+        massem = "movl `s0, `d0"
+       ,msrc = t2
+       ,mdest = t1
     }
 munchStm (Jump (Name l1) l2) = do
     let label = unpack l1
@@ -290,11 +282,10 @@ munchProc cuerpo frame = do
        ,odest = [sp]
        ,ojump = Nothing
     }
-    emit Oper {
-        oassem = "mov `s0, `d0"
-       ,osrc = [sp]
-       ,odest = [fp]
-       ,ojump = Nothing
+    emit Mov {
+        massem = "mov `s0, `d0"
+       ,msrc = sp
+       ,mdest = fp
     }
     --Luego reservo las variables locales
     emit Oper {
