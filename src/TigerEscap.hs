@@ -52,6 +52,10 @@ class (Demon m, Monad m) => Escapator m where
 lookUpLvl :: (Escapator m) => Symbol -> m Int
 lookUpLvl nm = lookup nm >>= maybe (notfound nm) (return . fst)
 
+bulkInsert :: (Escapator m) => [(Symbol, Escapa)] -> m a -> m a
+bulkInsert xs m = foldr (\(name, esc) res -> insert name esc res) m xs
+
+
 travVar :: (Escapator m) => Var -> m Var
 travVar (SimpleVar s) = do
     lvl <- lookUpLvl s
@@ -106,39 +110,28 @@ travExp (ForExp s e lo hi body p) = do
     -- body es analizado en un entorno expandido con s.
     body' <- insert s e (travExp body)
     return (ForExp s e lo' hi' body' p)
-travExp (LetExp ds e p) = do
-   (ds', e') <- travDecs ds ( do
-                                e' <- travExp e
-                                ds' <- mapM (\case
-                                                (VarDec name _ typ exp p) -> do
-                                                  chk <- lookup name
-                                                  maybe (internal $ pack $ "666+1 -- Linea:" ++ show p)
-                                                        (\(_,esc) -> return (VarDec name esc typ exp p)
-                                                           ) chk
-                                                l -> return l) ds
-                                return (ds', e')
-                            )
-   return (LetExp ds' e' p)
 travExp (ArrayExp typ size init p) = do
     s' <- travExp size
     init' <- travExp init
     return (ArrayExp typ s' init' p)
+travExp (LetExp ds e p) = do
+    (ds', e') <- travDecs ds ( do
+                                 e' <- travExp e
+                                 ds' <- mapM (\case
+                                                 (VarDec name _ typ exp p) -> do
+                                                   chk <- lookup name
+                                                   maybe (internal $ pack $ "666+1 -- Linea:" ++ show p)
+                                                         (\(_,esc) -> return (VarDec name esc typ exp p)) 
+                                                         chk
+                                                 (FunctionDec ls) -> do ls' <- up (mapM travF ls)
+                                                                        return $ FunctionDec ls'
+                                                 l -> return l
+                                             ) 
+                                             ds
+                                 return (ds', e')
+                             )
+    return (LetExp ds' e' p)
 travExp v = return v
-
-travF :: (Escapator m) => (Symbol,[(Symbol, Escapa , Ty)], Maybe Symbol, Exp, Pos) -> m (Symbol,[(Symbol, Escapa , Ty)], Maybe Symbol, Exp, Pos)
-travF (name, params, res, body, p) = do
-    (body', params') <- bulkInsert (map (\(a,b,_) -> (a,b)) params) (do
-      body' <- travExp body
-      ds' <- mapM (\(s,_,ty) -> do
-                                mb <- lookup s
-                                case mb of
-                                    Nothing -> internal $ pack $ "666+2 -- Linea:" ++ show p
-                                    Just (_,esc) -> return (s,esc,ty)) params
-      return (body', ds'))
-    return (name, params', res, body', p)
-
-bulkInsert :: (Escapator m) => [(Symbol, Escapa)] -> m a -> m a
-bulkInsert xs m = foldr (\(name, esc) res -> insert name esc res) m xs
 
 travDecs :: (Escapator m) => [Dec] -> m a -> m a
 travDecs [] m = m
@@ -149,6 +142,21 @@ travDecs ((VarDec name esc typ init p) : xs) m = do
   init' <- travExp init
   insert name esc (travDecs xs m)
 travDecs (l : xs) m = travDecs xs m
+
+travF :: (Escapator m) => (Symbol,[(Symbol, Escapa , Ty)], Maybe Symbol, Exp, Pos) -> m (Symbol,[(Symbol, Escapa , Ty)], Maybe Symbol, Exp, Pos)
+travF (name, params, res, body, p) = do
+    (body', params') <- bulkInsert (map (\(a,b,_) -> (a,b)) params) (do
+      body' <- travExp body
+      ds' <- mapM (\(s,_,ty) -> do
+                                mb <- lookup s
+                                case mb of
+                                    Nothing -> internal $ pack $ "666+2 -- Linea:" ++ show p
+                                    Just (_,esc) -> return (s,esc,ty)
+                  ) 
+                  params
+      return (body', ds'))
+    return (name, params', res, body', p)
+
 
 -- Una vez que tenemos el algoritmo funcionando, ahora necesitamos
 -- una instancia de la clase para hacerlo andar...
@@ -174,6 +182,16 @@ type Dat = (Int , Escapa)
 -- El entorno va a ser simplemente el mapa que lleva la cuenta...
 type Env = M.Map Symbol Dat
 
+mergeEnv :: Env -> Env -> Env
+mergeEnv old new = 
+    M.fromList (
+        map (\(k,(i,e)) -> 
+            case M.lookup k new of
+                Nothing -> P.error "Caso imposible"
+                Just (i',e') -> if i == i' then (k,(i',e')) else (k,(i,e))
+            )
+        (M.assocs old)
+    )
 
 -- Para mostrar el *poder* del enfoque de usar este sistema de clases
 -- voy a definir dos estados, para eventualmente darle dos comportamientos
@@ -206,18 +224,22 @@ instance Escapator Mini where
     old <- get
     put (old{lvl = lvl old + 1})
     m' <- m
-    put old
+    new <- get
+    put new{lvl = lvl old}
     return m'
   update name esc = do
     est <- get
     (lvl, _) <- maybe (notfound name) return (M.lookup name (env est))
     ST.modify (\(S l env) -> S l (M.insert name (lvl, esc) env))
-  lookup name = get >>= return . M.lookup name . env
+  lookup name = do
+    s <- get
+    (return . M.lookup name . env) s
   insert name esc m = do
     old <- get
     put old{env = M.insert name (lvl old, esc) (env old)}
     m' <- m
-    put old
+    new <- get
+    put old{env = mergeEnv (env old) (env new)}
     return m'
   printEnv = get >>=  \env -> traceM $ "PrintEnv " ++ (show env)
 
@@ -246,7 +268,8 @@ instance Escapator Stepper where
     m' <- m
     -- Mantenemos los mensajes que ya reportamos...
     msg <- ST.gets msgP
-    put old{msgP = msg}
+    new <- get
+    put new{msgP = msg, lvlP = lvlP old}
     return m'
   -- Las operaciones que sí modifican el entorno son [update] e [insert]
   update name esc = do
@@ -262,7 +285,8 @@ instance Escapator Stepper where
     m' <- m
     -- Mantenemos los mensajes que ya reportamos...
     msg <- ST.gets msgP
-    put old{msgP = msg}
+    new <- get
+    put old{envP = mergeEnv (envP old) (envP new)}
     return m'
   printEnv = get >>=  \env -> traceM $ "PrintEnv " ++ (show env)
 

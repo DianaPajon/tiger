@@ -5,17 +5,17 @@ let
 
   var b := 0
   
-  /* calculate n! */
   function fact (n : int) : int =
-    let
-        var a := 0
-    in 
-        b := 34;
-        if  a = n /* Tiene que estar en el frame, negativo a y positivo n */
-        then 1
-        else a * fact (a - 1)
-    end
-in
-  a := 10; /* Tiene que estar en el frame. Primer variable*/
-  fact (a)
+        let
+            var d := 0
+            function useD() =
+                d := 2
+        in 
+            if  a = n /* Tiene que estar en el frame, negativo a y positivo n */
+            then 1
+            else a * fact (a - 1)
+        end
+in  
+    a := 10; /* Tiene que estar en el frame. Primer variable*/
+    fact (a)
 end

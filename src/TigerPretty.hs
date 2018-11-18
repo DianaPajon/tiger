@@ -41,8 +41,8 @@ prettyDec (FunctionDec f) = vcat $ map functionDec f
       hang (text "function " <> (text $ unpack s) <> (parens $ prettyField f) <> text " : " <> (text $ unpack r) <> (text " = ")) tabWidth (prettyExp e)
     functionDec (s, f, Nothing, e, _) = hang (text "function " <> (text $ unpack s) <> (parens $ prettyField f) <> (text " = ")) tabWidth (prettyExp e)
 
-prettyDec (VarDec s esc (Just r) e _) = (text $ unpack s) <> text " : " <> (text $ unpack r) <> text " = " <> prettyExp e <> text (if (esc == Escapa) then " - escapa" else " - no escapa")
-prettyDec (VarDec s esc Nothing e _) = (text $ unpack s) <> text " = " <> prettyExp e <> text (if (esc == Escapa) then " - escapa" else " - no escapa")
+prettyDec (VarDec s esc (Just r) e _) = (text $ unpack s) <> text " : " <> (text $ unpack r) <> text " := " <> prettyExp e <> text (if (esc == Escapa) then " - escapa" else " - no escapa")
+prettyDec (VarDec s esc Nothing e _) = (text $ unpack s) <> text " := " <> prettyExp e <> text (if (esc == Escapa) then " - escapa" else " - no escapa")
 prettyDec (TypeDec f) = vcat $ map typeDec f
   where
     typeDec (s, ty, _) = text "type " <> (text $ unpack s) <> text " = " <> prettyTy ty
@@ -62,7 +62,7 @@ prettyExp (CallExp s args _) = text (unpack s) <> (parens $ hcat $ punctuate com
 prettyExp (OpExp e1 op e2 _) = prettyExp e1 <> prettyOp op <> prettyExp e2
 prettyExp (RecordExp r n _) = text (unpack n) <> text "{" <> prettyRecord r <> text "}"
 prettyExp (SeqExp e _) = parens $ vcat $ punctuate semi (map prettyExp e)
-prettyExp (AssignExp v e _) = prettyVar v <> text " = " <> prettyExp e
+prettyExp (AssignExp v e _) = prettyVar v <> text " <- " <> prettyExp e
 prettyExp (IfExp e e1 (Just e2) _) = (hang (text "if " <> prettyExp e <> text " then ") tabWidth (prettyExp e1)) $$ text "else " <> prettyExp e2
 prettyExp (IfExp e e1 Nothing _) = hang (text "if " <> prettyExp e <> text " then ") tabWidth (prettyExp e1)
 prettyExp (WhileExp e e1 _) = hang (text "while " <> prettyExp e) tabWidth (prettyExp e1)

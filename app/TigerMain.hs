@@ -88,8 +88,6 @@ main = do
     let ret = runTranslate ast
     case ret of
         Left err -> print $ show err 
-        Right ((intermedio,tipo), estado) -> do
-            when (optCodInter opts') (print $ show intermedio)
-            when (optEstado opts') (print $ show  estado)
+        Right (frags, estado) -> do
             print "Genial!"
     

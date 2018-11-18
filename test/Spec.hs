@@ -42,21 +42,22 @@ dirtyTest dir file =
   either 
   (\err -> Left $ show err) 
   (\exp -> either (\err -> Left $ show err) (
-      \exp -> either (\err -> Left $  show err) (\(frags, estado) -> Right estado) $ runTranslate exp
-  ) $ E.calcularEEsc exp) 
+      \(exp,(env,lista)) -> either (\err -> Left $  show err) (\(frags, estado) -> Right estado) $ runTranslate exp
+  ) $ E.calcularEscStepper exp) 
   (parse programa)
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
 getProgram dir file = unsafePerformIO (readFile (dir ++ '/' : file))
 
 right (Right a) = a
+left (Left a) = a
 
 frame (Proc stmt frame) = frame
 
 prettyAst dir file =
     either 
     (\err -> Left $ show err) 
-    (\exp -> either (\err -> Left $ show err) (\exp -> Right $ renderExp exp) $ E.calcularEEsc exp) 
+    (\exp -> either (\err -> Left $ show err) (\(exp,(env,lista)) -> Right $ renderExp exp) $ E.calcularEscStepper exp) 
     (parse programa)
      where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
