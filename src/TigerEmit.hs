@@ -1,4 +1,6 @@
-module TigerEmit (codegen) where
+module TigerEmit (
+        codegen, Assem(Oper, Mov, Lab), oassem, odest, osrc, ojump, lassem, label, massem, mdest, msrc
+    ) where
 
 import Prelude as P
 import TigerTree
