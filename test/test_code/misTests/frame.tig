@@ -9,7 +9,7 @@ let
         let
             var d := 0
             function useD() =
-                d := 2
+                d := n
         in 
             if  a = n /* Tiene que estar en el frame, negativo a y positivo n */
             then 1

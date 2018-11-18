@@ -48,8 +48,8 @@ fpPrev = 0
 fpPrevLev :: Int
 fpPrevLev = 0
 
-argsGap = wSz
-localsGap = wSz
+argsGap = 8
+localsGap = -4
 
 argsInicial = 0
 regInicial = 1
@@ -107,7 +107,7 @@ externalCall s = Call (Name $ pack s)
 allocArg :: (Monad w, TLGenerator w) => Frame -> Bool -> w (Frame, Access)
 allocArg fr True =
     let actual = actualArg fr
-        acc = InFrame $ actual + argsGap in
+        acc = InFrame $ 4*actual + argsGap in
     return (fr{actualArg = actual +1}, acc)
 allocArg fr False = do
     s <- newTemp
@@ -116,7 +116,7 @@ allocArg fr False = do
 allocLocal :: (Monad w, TLGenerator w) => Frame -> Bool -> w (Frame, Access)
 allocLocal fr True =
     let actual = actualLocal fr
-        acc = InFrame $ actual * localsGap in
+        acc = InFrame $ (-4)*actual + localsGap in
     return (fr{actualLocal= actual +1}, acc)
 allocLocal fr False = do
     s <- newTemp
