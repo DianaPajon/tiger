@@ -25,7 +25,7 @@ data Assem =
         massem :: String,
         mdest :: Temp,
         msrc :: Temp
-  }
+  } deriving Eq
 
 class TLGenerator w => Emisor w where
     emit :: Assem -> w ()
@@ -121,7 +121,7 @@ munchExp (Binop oper e1 e2) = do
             return t1
         Minus ->  do
             emit Oper {
-                oassem = "subl`s0,`s1"
+                oassem = "subl `s0,`s1"
                ,osrc = [t1,t2]
                ,odest = [t1]
                ,ojump = Nothing
@@ -129,7 +129,7 @@ munchExp (Binop oper e1 e2) = do
             return t1
         Mul -> do 
             emit Mov {
-                massem = "movl %eax,t1"
+                massem = "movl `s0, `d0"
                ,msrc = t1
                ,mdest = eax
             }
@@ -142,7 +142,7 @@ munchExp (Binop oper e1 e2) = do
             return eax
         Div -> do 
             emit Mov {
-                massem = "movl %eax,t1"
+                massem = "movl `s0,`d0`"
                ,msrc = t1
                ,mdest = eax
             }
@@ -345,5 +345,5 @@ instance Emisor Emit where
         e <- get
         put  e{assembly = assembly e ++ [ins]}
 
-codegen :: Stm -> Frame -> Integer -> [Assem] 
+codegen :: Stm -> Frame -> Integer -> [Assem]
 codegen cuerpo frame unique = assembly $ snd $  runState (munchProc cuerpo frame) (Estado{unique = unique, assembly = []})
