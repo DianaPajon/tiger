@@ -1,5 +1,7 @@
 import TigerParser
 import TigerTranslate
+import TigerSeman
+import Control.Monad.State
 import TigerPrettyIr
 import TigerFrame
 import TigerTips
@@ -7,10 +9,12 @@ import TigerTrans
 --For debuggin's sake
 import TigerPretty
 import TigerPrettyIr
+import TigerAbs
 
 import           Data.Text as T
 import qualified TigerEscap as E
 import Tools
+
 import System.IO.Unsafe
 
 main :: IO ()
@@ -32,7 +36,26 @@ tester :: String -> Either [Errores] ([Frag],Estado)
 tester s =   either (\err -> Left []) (\exp -> runTranslate exp) (
                   either (\err -> Left $ E.Interno (T.pack "Error de parsing")) (\exp -> E.calcularEEsc exp) (parse s)
             )
+--
+unicaPosicion :: Pos
+unicaPosicion = Simple {line = 0, col = 0}
 
+programaPrueba :: TigerAbs.Exp
+programaPrueba = 
+    LetExp 
+      [
+        TypeDec [(T.pack "enteros", NameTy $ T.pack "int", unicaPosicion)],
+        VarDec (T.pack "variableEntera") Escapa (Just $ T.pack "enteros") (IntExp 2 unicaPosicion) unicaPosicion,
+        VarDec (T.pack "variableEntera2") Escapa (Just $ T.pack "enteros") (IntExp 4 unicaPosicion) unicaPosicion
+      ]
+      (StringExp "hola" unicaPosicion)
+      unicaPosicion
+  
+runTranslate :: TigerAbs.Exp -> Either [Errores] ([Frag],Estado)
+runTranslate expre = runStateT (transProg expre :: TigerState [Frag])  initConf
+
+
+--END CODIGO PRUEBA
 --Sandbox tools:
 quickTest :: String -> String -> IO ()
 quickTest dir file = test dir (badRes . show) (const $ bluenice) tester file
@@ -46,6 +69,7 @@ dirtyTest dir file =
   ) $ E.calcularEscStepper exp) 
   (parse programa)
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
+
 
 getProgram dir file = unsafePerformIO (readFile (dir ++ '/' : file))
 

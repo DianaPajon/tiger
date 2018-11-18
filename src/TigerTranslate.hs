@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
+--Implementación completa de la capa Translate.
+
 module TigerTranslate where
 import           TigerSeman
 import           TigerTips
@@ -190,21 +192,6 @@ getTipoT' s e = (M.lookup s (tEnv $ scope e))
 instance MemM TigerState where 
     getActualLevel = do estado <- get
                         return $ actualLevel  estado
-{-    upLvl = do estado <- get
-               let niveles = level estado
-               let actual = actualLevel estado
-               let (MkLI frame lastLevel) = L.head niveles
-               if(actual == lastLevel)
-                then internal $ T.pack "Nivel mas alto"
-                else put estado{actualLevel = actual + 1}
-    downLvl = do estado <- get
-                 let niveles = level estado
-                 let actual = actualLevel estado
-                 let (MkLI frame lastLevel) = L.last niveles
-                 if(actual == -1)
-                  then internal $ T.pack "Nivel mas bajo"
-                  else put estado{actualLevel = actual - 1}
--}
     pushSalida s = do
         estado <- get
         let ss = salidas $ scope estado
@@ -251,24 +238,4 @@ downLvl' ((MkLI f l):(MkLI f' l'):ls) i = if l' == i then Just l else downLvl' (
 downLvl' ((MkLI f l):[]) i = if l == i then Just l else Nothing
 downLvl' [] i = Nothing
 
---
---BEGIN CODIGO PRUEBA
-unicaPosicion :: Pos
-unicaPosicion = Simple {line = 0, col = 0}
 
-programaPrueba :: TigerAbs.Exp
-programaPrueba = 
-    LetExp 
-      [
-        TypeDec [(T.pack "enteros", NameTy $ T.pack "int", unicaPosicion)],
-        VarDec (T.pack "variableEntera") Escapa (Just $ T.pack "enteros") (IntExp 2 unicaPosicion) unicaPosicion,
-        VarDec (T.pack "variableEntera2") Escapa (Just $ T.pack "enteros") (IntExp 4 unicaPosicion) unicaPosicion
-      ]
-      (StringExp "hola" unicaPosicion)
-      unicaPosicion
-  
-runTranslate :: TigerAbs.Exp -> Either [Errores] ([Frag],Estado)
-runTranslate expre = runStateT (transProg expre :: TigerState [Frag])  initConf
-
-
---END CODIGO PRUEBA

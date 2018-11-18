@@ -1,12 +1,9 @@
-Fechas:
-16 de Noviembre: Leido liveness . Hecho.
-16 de Noviembre:  Armar el esqueleto final y correr el test. Hecho
-17 de Noviembre:  Armar el esqueleto final y correr el test. Hecho
-Next-
-19 de Noviembre: Hecho liveness. Tiene que salir facil, es cuestion de escribir bien las estructuras.
-20 de Noviembre: Leer allocation
-1 de Diciembre: Hecho allocation
-8 de Diciembre: Armado, hablar para entregar
+18,19,20 de Noviembre: Revisión de esqueleto,  NO TIENE QUE HABER NADA MAL.
+     Ya la sorpresa del calculo de escapadas me dejó aturdida, que no pase nada así de nuevo.
+21 de Noviembre: Hecho liveness. Tiene que salir facil, es cuestion de escribir bien las estructuras.
+22 de Noviembre: Leer allocation
+3 de Diciembre: Hecho allocation. Comenzar armado (linkeado, etc). ¿ESTO SE PASA AL ENSAMBLADOR Y SE LINKEA, VERDAD?
+8 de Diciembre: Armado y TESTEADO., hablar para entregar
 15 de Diciembre: Compilador TERMINADO. Completito.
 
 Recordar:

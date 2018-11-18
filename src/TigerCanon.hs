@@ -133,10 +133,10 @@ class Monad w => Trackable w where
     enterBlock _ = return ()
     getBlock :: Label -> w (Maybe [Stm])
 
-data Obus = O {mapLS :: M.Map Label [Stm], lgen :: Integer , tgen :: Integer}
+data Obus = O {mapLS :: M.Map Label [Stm], ugen :: Integer}
 
 firstTank :: Obus
-firstTank = O {mapLS = M.empty, lgen = 0, tgen = 0}
+firstTank = O {mapLS = M.empty, ugen = 0}
 
 type Tank = State Obus
 
@@ -151,15 +151,15 @@ type Tank = State Obus
 instance TLGenerator Tank where
     newTemp = do
         st <- get
-        let i = tgen st
+        let i = ugen st
         let temp = detgenTemp i
-        put st{tgen=i+1}
+        put st{ugen=i+1}
         return temp
     newLabel = do
         st <- get
-        let i = lgen st
+        let i = ugen st
         let label = detgenLabel i
-        put st{lgen=i+1}
+        put st{ugen=i+1}
         return label
 
 instance Trackable Tank where
@@ -218,11 +218,11 @@ canonM st = do
     lss <- basicBlocks lin
     traceSchedule lss
 
--- canon :: Int -> Int -> [(Stm,a)] -> ([([Stm],a)], Int, Int)
--- canon tseed lseed frs = let
---     fsTank = firstTank {lgen = lseed, tgen = tseed}
---     (res,est) = runState (
---                     mapM (\(st,fr) -> do
---                             ss <- canonM st
---                             return (ss,fr)) frs) fsTank
---     in (res, tgen est, lgen est)
+canon :: Integer -> [(Stm,a)] -> ([([Stm],a)], Integer)
+canon seed frs = let
+     fsTank = firstTank {ugen = seed}
+     (res,est) = runState (
+                     mapM (\(st,fr) -> do
+                             ss <- canonM st
+                             return (ss,fr)) frs) fsTank
+     in (res, ugen est)

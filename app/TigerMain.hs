@@ -85,9 +85,9 @@ main = do
     rawAst <- parserStep opts' s sourceCode
     ast <- calculoEscapadas rawAst opts'
     when (optArbol opts') (showExp ast)
-    let ret = runTranslate ast
-    case ret of
-        Left err -> print $ show err 
-        Right (frags, estado) -> do
-            print "Genial!"
+    --let ret = runTranslate ast
+    --case ret of
+      --  Left err -> print $ show err 
+--        Right (frags, estado) -> do
+    print "Genial!"
     

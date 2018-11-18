@@ -42,14 +42,14 @@ munchArgs (es) = do
        ,ojump = Nothing
     }
     munchArgs $ P.init es
---Maximum munch para ia32. 
+
 munchExp (Call (Name n) par) = do
     munchArgs par
     emit Oper {
         oassem = "call " ++ unpack n
        ,osrc = []
        ,odest = eax:calldefs 
-       ,ojump = Just [n]
+       ,ojump = Nothing -- Considero un call DISTINTO a un jump, ya que para liveness debería ser así.
     }
     --al volver, lo primero es normalizar los argumentos. Ya call-ret eliminó el return value.
     emit Oper {
