@@ -16,6 +16,11 @@ let
             else a * fact (a - 1)
         end
 in  
-    a := 10; /* Tiene que estar en el frame. Primer variable*/
-    fact (a)
+    for i :=0 to 100 do 
+        let 
+            function factorial() : int =
+                fact(i)
+        in
+            factorial()
+        end
 end

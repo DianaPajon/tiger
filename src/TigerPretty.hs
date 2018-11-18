@@ -66,7 +66,7 @@ prettyExp (AssignExp v e _) = prettyVar v <> text " <- " <> prettyExp e
 prettyExp (IfExp e e1 (Just e2) _) = (hang (text "if " <> prettyExp e <> text " then ") tabWidth (prettyExp e1)) $$ text "else " <> prettyExp e2
 prettyExp (IfExp e e1 Nothing _) = hang (text "if " <> prettyExp e <> text " then ") tabWidth (prettyExp e1)
 prettyExp (WhileExp e e1 _) = hang (text "while " <> prettyExp e) tabWidth (prettyExp e1)
-prettyExp (ForExp s _ e1 e2 e3 _) = hang (text "for " <> text (unpack s) <> text " := " <> prettyExp e1 <> text " to " <> prettyExp e2) tabWidth (prettyExp e3)
+prettyExp (ForExp s esc e1 e2 e3 _) = hang (text "for " <> text (unpack s) <> text "(" <> text (if esc == Escapa then "escapa" else "no escapa") <> text ")" <> text " := " <> prettyExp e1 <> text " to " <> prettyExp e2) tabWidth (prettyExp e3)
 prettyExp (LetExp d e _) = text "let " <> nest tabWidth (vcat (map prettyDec d)) $$ text "in " <> prettyExp e $$ text "end"
 prettyExp (BreakExp _) = text "break"
 prettyExp (ArrayExp s e1 e2 _) = text "array " <> brackets (prettyExp e1) <> text " of " <> prettyExp e2

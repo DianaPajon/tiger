@@ -108,8 +108,15 @@ travExp (ForExp s e lo hi body p) = do
     lo' <- travExp lo
     hi' <- travExp hi
     -- body es analizado en un entorno expandido con s.
-    body' <- insert s e (travExp body)
-    return (ForExp s e lo' hi' body' p)
+    (e', body') <- insert s e ( do
+        cuerpo <- travExp body
+        entrada <- lookup s 
+        maybe 
+            (internal $ pack $ "666+0 -- Linea:" ++ show p)
+            (\(_,esc) -> return (esc, cuerpo))
+            entrada
+     )
+    return (ForExp s e' lo' hi' body' p)
 travExp (ArrayExp typ size init p) = do
     s' <- travExp size
     init' <- travExp init
