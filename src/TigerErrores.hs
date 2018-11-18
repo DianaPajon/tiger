@@ -14,3 +14,13 @@ class Demon w where
     internal = derror . addStr "Internal: "
     notfound :: Symbol -> w a
     notfound  = derror . addStr "Not found:"
+
+data Errores =  NotFound Symbol
+              | Interno Symbol
+              | Error Symbol
+
+instance Show Errores where
+    show (NotFound e) = "No se encuentra la variable "++ show e
+    show (Interno e)  = "Error interno " ++ show e
+    show (Error s) = show s
+            

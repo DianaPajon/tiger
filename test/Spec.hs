@@ -6,6 +6,7 @@ import TigerPrettyIr
 import TigerFrame
 import TigerTips
 import TigerTrans
+import TigerErrores
 --For debuggin's sake
 import TigerPretty
 import TigerPrettyIr
@@ -33,10 +34,19 @@ main =
     putStrLn "\n======= Test FIN ======="
 
 tester :: String -> Either [Errores] ([Frag],Estado)
-tester s =   either (\err -> Left []) (\exp -> runTranslate exp) (
-                  either (\err -> Left $ E.Interno (T.pack "Error de parsing")) (\exp -> E.calcularEEsc exp) (parse s)
+tester s =   either (\err -> Left [Error (T.pack $ show err)]) (\exp -> runTranslate exp) (
+                  either (\err -> Left $ Interno (T.pack $ "Error de parsing" ++ show err)) (\exp -> E.calcularEEsc exp) (parse s)
             )
---
+
+parserStage :: String -> Either [Errores] TigerAbs.Exp
+parserStage s = either (\err -> Left [Error $ T.pack $ "Error de parsing:" ++ show err] ) (\exp -> Right exp) (parse s)
+
+escapStage :: TigerAbs.Exp -> Either [Errores] TigerAbs.Exp
+escapStage exp = either (\err -> Left [err]) (\exp -> Right exp)  (E.calcularEEsc exp)
+
+translateStage :: TigerAbs.Exp -> Either [Errores] [Frag]
+translateStage exp = either (\err -> Left err) (\(frags, estado) -> Right frags) (runTranslate exp)
+
 unicaPosicion :: Pos
 unicaPosicion = Simple {line = 0, col = 0}
 
@@ -69,7 +79,6 @@ dirtyTest dir file =
   ) $ E.calcularEscStepper exp) 
   (parse programa)
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
-
 
 getProgram dir file = unsafePerformIO (readFile (dir ++ '/' : file))
 

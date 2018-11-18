@@ -19,7 +19,6 @@ import           Data.Text as T
 import           Data.Map as M
 import           Control.Monad.State
 import           GHC.List as L
-import           TigerCanon
 import           TigerTree as Tree
 import           TigerPrettyIr
 import           TigerEmit
@@ -57,9 +56,6 @@ instance Show Estado where
                   "Level: \n\n" ++ show (level estado) ++ "\n" ++ 
                   "Frags: \n\n" ++ show (frags estado)
 
--- Tipo que modela los errores
-data Errores = NotFound T.Text | DiffVal T.Text | Internal T.Text | Error T.Text
-    deriving Show
 
 -- Configuracion inicial del compilador.
 initConf :: Estado

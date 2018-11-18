@@ -168,12 +168,7 @@ travF (name, params, res, body, p) = do
 -- Una vez que tenemos el algoritmo funcionando, ahora necesitamos
 -- una instancia de la clase para hacerlo andar...
 
-data Errores =  NotFound Symbol
-                | Interno Symbol
 
-instance Show Errores where
-    show (NotFound e) = "No se encuentra la variable "++ show e
-    show (Interno e)  = "Error interno " ++ show e
 
 eappend :: Errores -> Symbol -> Errores
 eappend (NotFound e) e1 = NotFound (append e e1)
