@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns         #-}
+
 module Main where
 
 import TigerParser
@@ -38,7 +40,7 @@ main =
     putStrLn "\n======= Test FIN ======="
 
 tester :: String -> Either [Errores] [[Assem]]
-tester s =  tigerHastaAssem s
+tester s = (\ !a -> a ) (tigerHastaAssem s)
 
 type TigerStage = Either [Errores]
 
