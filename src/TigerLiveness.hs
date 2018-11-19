@@ -5,7 +5,7 @@ import TigerTemp
 import Data.Set as S
 import Grafo
 import Data.Text
-
+{-
 --Tipo que modelan el grafo de flujo.
 data FlowNode = Node {
     def :: Set Temp
@@ -32,3 +32,4 @@ uses :: Assem -> Set Temp
 uses (Oper {oassem = _, osrc = src, odest = _, ojump = _}) = S.fromList src
 uses (Mov {massem = _, msrc = src, mdest = _}) = S.fromList [src]
 
+-}

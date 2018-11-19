@@ -21,6 +21,6 @@ in
             function factorial() : int =
                 fact(i)
         in
-            factorial()
+            b := factorial()
         end
 end

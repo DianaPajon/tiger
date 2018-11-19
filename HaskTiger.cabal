@@ -81,8 +81,8 @@ executable HaskTiger
 
 test-suite HaskTiger-test
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      test, src
-  main-is:             Spec.hs
+  hs-source-dirs:      test , src
+  main-is:             TestMain.hs
   build-depends:       base
                        , containers
                        , text

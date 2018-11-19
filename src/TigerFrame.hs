@@ -73,6 +73,25 @@ sepFrag xs = (reverse ass, reverse stmss)
                 AString {} -> (x:lbls, stms)
                 ) ([],[]) xs
 
+
+-- | Función helper /seq/ que nos permite escribir
+-- fácilmente una secuencia de [Stm] usando listas.
+seq :: [Stm] -> Stm
+seq []     = ExpS $ Const 0
+seq [s]    = s
+seq (x:xs) = Seq x (seq xs)
+
+p
+
+procEntryExit :: Frame -> Stm -> Stm
+procEntry frame stm = seq ([
+    Push (Temp fp),
+    Move (Temp fp) (Temp sp),
+    AddStack (actualLocal frame),
+    stm,
+    AddStack (0 - actualLocal frame)
+    Pop (Temp fp)
+])
 instance Show Frag where
     show (Proc s f) = "Frame:" ++ show f ++ '\n': show s
     show (AString l ts) = show l ++ ":\n" ++ (foldr (\t ts -> ("\n\t" ++ unpack t) ++ ts) "" ts)

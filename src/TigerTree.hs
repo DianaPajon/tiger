@@ -22,6 +22,8 @@ data Stm
     | Seq Stm Stm
     | Label Temp.Label
     | Push Exp
+    | Pop Temp.Temp
+    | AddStack Int
     | Ret
     deriving Show
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns         #-}
+
 module Tools where
 
 import           System.Console.ANSI
@@ -26,7 +28,7 @@ testSTDBad = testBad bad_loc
 
 testGood :: Show a => String -> (String -> Either a b) -> String -> IO ()
 testGood loc = test loc ( badRes . show )
-                        ( const bluenice )
+                        (\ !x -> const bluenice $ x)
 
 testBad loc  = test loc (const bluefail )
                (const rednice )
