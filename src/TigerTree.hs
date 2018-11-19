@@ -21,6 +21,8 @@ data Stm
     | CJump Relop Exp Exp Temp.Label Temp.Label
     | Seq Stm Stm
     | Label Temp.Label
+    | Push Exp
+    | Ret
     deriving Show
 
 data BOp = Plus | Minus | Mul | Div | And | Or | LShift | RShift
