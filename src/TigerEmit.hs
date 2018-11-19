@@ -1,5 +1,5 @@
 module TigerEmit (
-        codegen, codegens, Assem(Oper, Mov, Lab), oassem, odest, osrc, ojump, lassem, label, massem, mdest, msrc
+        codegen,  Assem(Oper, Mov, Lab), oassem, odest, osrc, ojump, lassem, label, massem, mdest, msrc
     ) where
 
 import Prelude as P
@@ -7,6 +7,8 @@ import TigerTree
 import TigerTemp
 import Data.Text
 import TigerFrame
+import TigerCanon
+import Data.Map as M
 import Control.Monad.State
 
 
@@ -303,71 +305,66 @@ munchStm (Seq s1 s2) = do
     munchStm s1
     munchStm s2
     return ()
-
---Esta reemplaza a los procEntryExit porque no me gustan
-procEntry :: (Emisor e) => Frame -> e ()
-procEntry frame = do
+munchStm (Push (Const n)) = do
+    emit Oper {
+        oassem = "push $" ++ show n
+       ,osrc = []
+       ,odest = [sp]
+       ,ojump = Nothing
+    }
+munchStm (Push (Temp t)) = do
+    emit Oper {
+        oassem = "push `s0`"
+        ,osrc = [t]
+        ,odest = [sp]
+        ,ojump = Nothing
+    }
+munchStm (Push e) = do
+    t <- munchExp e
     emit Oper {
         oassem = "push `s0"
-       ,osrc = [fp]
-       ,odest = [sp]
-       ,ojump = Nothing
+        ,osrc = [t]
+        ,odest = [sp]
+        ,ojump = Nothing
     }
-    emit Mov {
-        massem = "mov `s0, `d0"
-       ,msrc = sp
-       ,mdest = fp
-    }
-    --Luego reservo las variables locales
-    emit Oper {
-        oassem = "subl $" ++ show localsSize ++  ", `d0"
-       ,osrc = []
-       ,odest = [sp]
-       ,ojump = Nothing
-    }
- where localsSize = actualLocal frame * localsGap
-
-procExit :: (Emisor e) => Frame -> e ()
-procExit frame = do
-    emit Oper {
-        oassem = "addl $" ++ show localsSize ++  ", `d0"
-       ,osrc = []
-       ,odest = [sp]
-       ,ojump = Nothing
-    }
-    --Y popeo el viejo ebp
+munchStm (Pop t) = do
     emit Oper {
         oassem = "pop `d0"
        ,osrc = []
-       ,odest = [fp]
+       ,odest = [t]
        ,ojump = Nothing
     }
-    --Finalmente, retorno
-    emit Oper{
+munchStm (AddStack i) = do
+    emit Oper {
+        oassem = ins ++ " $" ++ show i ++ ", `d0"
+        ,osrc = []
+        ,odest = [sp]
+        ,ojump = Nothing
+    }
+ where ins = if i >= 0 then "addl" else "subl"
+munchStm Ret = do
+    emit Oper {
         oassem = "ret"
-       ,osrc = []
-       ,odest = [sp] --Popea la instrucción
-       ,ojump = Nothing
+        ,osrc = []
+        ,odest = [sp]
+        ,ojump = Nothing
     }
- where localsSize = actualLocal frame * localsGap
 
-munchProg :: (Emisor e) =>  [Stm] -> e ()
-munchProg [] = return ()
-munchProg (s:ss) = do
+
+munchStmts :: (Emisor e) =>  [Stm] -> e ()
+munchStmts [] = return ()
+munchStmts (s:ss) = do
     munchStm s 
-    munchProg ss 
+    munchStmts ss 
   
-munchProc :: (Emisor e) =>  [Stm] -> Frame -> e ()
-munchProc ss f = do
-    procEntry f
-    munchProg ss
-    procExit f
+
 
 --Implementación del emisor de código
 
 data EstadoEmisor = EstadoEmisor {
     assembly :: [Assem],
-    unique :: Integer
+    unique :: Integer,
+    tank:: M.Map Label [Stm]
 } deriving Show
 
 type Emit = State EstadoEmisor
@@ -387,14 +384,21 @@ instance Emisor Emit where
         e <- get
         put  e{assembly = assembly e ++ [ins]}
 
+instance Trackable Emit where
+    enterBlock' l b = do
+        st <- get
+        put $ st{tank = insert l b $ tank st}
+    getBlock l = do
+        s <- get
+        return $ M.lookup l (tank s)
 
+munchProc :: (Emisor w, Trackable w) => Stm -> w ()
+munchProc s  = do
+    lin <- linearize s
+    lss <- basicBlocks lin
+    stmts <- traceSchedule lss
+    munchStmts stmts
 
-
-codegen :: Stm -> Frame -> Integer -> ([Assem], Integer)
-codegen cuerpo frame seed = (assembly estado,  unique estado)
- where estado = snd $ runState (munchStm cuerpo ) (EstadoEmisor{unique = seed, assembly = []})
-
-codegens :: [Stm] -> Frame -> Integer -> ([Assem], Integer)
-codegens cuerpos frame seed = (assembly estado,  unique estado)
-  where estado = snd $ runState (munchProc cuerpos frame) (EstadoEmisor{unique = seed, assembly = []})
- 
+codegen :: Stm ->  Integer -> ([Assem], Integer)
+codegen cuerpo seed = (assembly estado,  unique estado)
+ where estado = snd $ runState (munchProc cuerpo ) (EstadoEmisor{unique = seed, assembly = [], tank = M.empty})

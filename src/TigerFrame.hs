@@ -69,29 +69,30 @@ sepFrag xs = (reverse ass, reverse stmss)
     where
         (ass, stmss) = foldl (\ (lbls,stms) x ->
             case x of
-                Proc st fr -> (lbls, (st,fr) : stms)
+                Proc st fr -> (lbls, (procEntryExit2 fr st,fr) : stms)
                 AString {} -> (x:lbls, stms)
                 ) ([],[]) xs
 
 
 -- | Función helper /seq/ que nos permite escribir
 -- fácilmente una secuencia de [Stm] usando listas.
-seq :: [Stm] -> Stm
-seq []     = ExpS $ Const 0
-seq [s]    = s
-seq (x:xs) = Seq x (seq xs)
+seqs :: [Stm] -> Stm
+seqs []     = ExpS $ Const 0
+seqs [s]    = s
+seqs (x:xs) = Seq x (seqs xs)
 
-p
 
-procEntryExit :: Frame -> Stm -> Stm
-procEntry frame stm = seq ([
+procEntryExit2 :: Frame -> Stm -> Stm
+procEntryExit2 frame stm = seqs [
     Push (Temp fp),
     Move (Temp fp) (Temp sp),
-    AddStack (actualLocal frame),
+    AddStack (stackSize frame),
     stm,
-    AddStack (0 - actualLocal frame)
-    Pop (Temp fp)
-])
+    AddStack (0 - stackSize frame),
+    Pop  fp,
+    Ret
+ ]
+ where stackSize f = wSz * actualLocal f
 instance Show Frag where
     show (Proc s f) = "Frame:" ++ show f ++ '\n': show s
     show (AString l ts) = show l ++ ":\n" ++ (foldr (\t ts -> ("\n\t" ++ unpack t) ++ ts) "" ts)
