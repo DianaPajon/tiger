@@ -263,7 +263,7 @@ instance (MemM w) => IrGen w where
         procEntryExit lvl (Nx body)
         return $ Ex $ Const 0
     simpleVar acc level = case acc of
-        InReg r -> return $ Ex $ Mem (Temp r)
+        InReg r -> return $ Ex $ Temp r
         InFrame o -> do
             nivelActual <- getActualLevel
             return $ Ex $ Mem (Binop Plus (Const o ) (arbolStaticLink nivelActual level))
