@@ -7,8 +7,8 @@ module TigerCanon
   , basicBlocks   -- | [Stm] -> ([[Stm]] , Label)
   , traceSchedule -- | ( [[Stm]] , Label) -> [Stm]
   , Trackable
+  , enterBlock'
   , getBlock
-  , enterBlock'     -- Para poder hacer que el emisor caninice antes.
   )
 where
 

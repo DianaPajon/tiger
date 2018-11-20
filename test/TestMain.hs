@@ -17,6 +17,7 @@ import TigerPretty
 import TigerPrettyIr
 import TigerAbs
 import TigerEmit
+import TigerShow
 import Data.Text as T
 import qualified TigerEscap as E
 import System.IO.Unsafe
@@ -39,7 +40,7 @@ main =
     testDir bad_loc (testBad bad_loc tester) >>
     putStrLn "\n======= Test FIN ======="
 
-tester :: String -> Either [Errores] [[Assem]]
+tester :: String -> Either [Errores] [([Assem],Frame)]
 tester s = (\ !a -> a ) (tigerHastaAssem s)
 
 type TigerStage = Either [Errores]
@@ -52,14 +53,14 @@ instance Monad TigerStage where
 -}
 
 
-tigerHastaAssem :: String -> TigerStage [[Assem]]
+tigerHastaAssem :: String -> TigerStage [([Assem], Frame)]
 tigerHastaAssem programa = do
     expresionSinEscapar <- parserStage programa
     expresionEscapada <- escapStage expresionSinEscapar
     (fragmentos,useed) <- translateStage expresionEscapada
     let (_,fragsSeparados) = sepFrag fragmentos
     let (assems,seed) = aplicarCodegen (fragsSeparados, useed)
-    return $ P.map (\(frags, frame) -> frags) assems
+    return assems
   where aplanar (x:xs) = x ++ aplanar xs
         aplicarCodegen (frags, seed) =
             P.foldr 
@@ -72,9 +73,6 @@ tigerHastaAssem programa = do
                 ([],seed)
                 frags
                 
-
-
-
 parserStage :: String -> Either [Errores] TigerAbs.Exp
 parserStage s = either (\err -> Left [Error $ T.pack $ "Error de parsing:" ++ show err] ) (\exp -> Right exp) (parse s)
 
@@ -109,22 +107,34 @@ runTranslate expre = runStateT (transProg expre :: TigerState [Frag])  initConf
 quickTest :: String -> String -> IO ()
 quickTest dir file = test dir (badRes . show) (const $ bluenice) tester file
 
-dirtyTestAssem :: String -> String -> Either [Errores] [[Assem]]
+dirtyTestAssem :: String -> String -> Either [Errores] [([Assem], Frame)]
 dirtyTestAssem dir file = tigerHastaAssem programa
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
+imprimirAssembler :: String -> String -> IO ()
+imprimirAssembler dir file = do
+    let bloques = right $ dirtyTestAssem dir file
+    nada <- mapM (\(ins, fr) -> mostrarBloque ins fr) bloques
+    return ()
+mostrarBloque :: [Assem] -> Frame -> IO ()
+mostrarBloque inss frame = putStrLn $ printBlock naiveColorer  frame inss
+
+showAssem :: [Assem] -> String
+showAssem (i@(Oper assembly dest src _):is) = 
+   assembly ++ ", src:" ++ show src ++ ", dest:" ++ show dest ++ "\n" ++
+   showAssem is
+showAssem (i@(Mov assembly dest src):is) = 
+   assembly  ++ ", src:"  ++ show src ++ ", dest:" ++ show dest ++ "\n" ++ 
+   showAssem is
+showAssem (i@(Lab assembly _):is) = 
+   assembly ++ "\n" ++
+   showAssem is
+showAssem [] = ""
+
 
 printAssem :: [Assem] -> IO ()
-printAssem (i@(Oper _ _ _ _):is) = do
-     putStrLn $ oassem i ++ ", src:" ++ show (osrc i) ++ ", dest:" ++ show (mdest i)
-     printAssem is
-printAssem (i@(Mov _ _ _):is) = do
-    putStrLn $ massem i ++ ", src:"  ++ show (msrc i) ++ ", dest:" ++ show (mdest i)
-    printAssem is
-printAssem (i@(Lab _ _):is) = do
-    putStrLn $ lassem i
-    printAssem is
-printAssem [] = return ()
+printAssem assems = putStrLn $ showAssem assems
+
 getProgram dir file = unsafePerformIO (readFile (dir ++ '/' : file))
 
 right (Right a) = a

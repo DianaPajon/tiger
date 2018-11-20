@@ -142,11 +142,11 @@ instance TLGenerator TigerState where
     newTemp = do estado <- get
                  let u = unique estado
                  put estado{unique = u + 1}
-                 return $ T.pack ("Temp_" ++ show u)
+                 return $ T.pack ("t" ++ show u)
     newLabel = do estado <- get
                   let u = unique estado
                   put estado{unique = u + 1}
-                  return $ T.pack ("Label_" ++ show u)
+                  return $ T.pack ("L" ++ show u)
  
 --Funciones auxiliares para implementar manticore                            
 insertValV' :: Symbol -> ValEntry -> Scope -> Scope

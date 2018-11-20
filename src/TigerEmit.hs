@@ -56,7 +56,7 @@ munchExp (Call (Name n) par) = do
     }
     --al volver, lo primero es normalizar los argumentos. Ya call-ret eliminó el return value.
     emit Oper {
-        oassem = "addl $" ++ (show (P.length par * wSz)) ++ ", `d0"
+        oassem = "addl `d0, "  ++ (show (P.length par * wSz))
        ,osrc = []
        ,odest = [sp]
        ,ojump = Nothing
@@ -67,7 +67,7 @@ munchExp (Mem (Binop Plus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl " ++ show i ++ "(`s0)" ++ ", `d0"
+        massem = "movl `d0, [`s0 + " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -76,7 +76,7 @@ munchExp (Mem (Binop Plus (Const i) e1)) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl " ++ show i ++ "(`s0)" ++ ", `d0"
+        massem = "movl `d0, [`s0 + " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -85,7 +85,7 @@ munchExp (Mem (Binop Minus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl " ++ show (-i) ++ "(`s0)" ++ ", `d0"
+        massem = "movl `d0, [`s0 - " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -94,7 +94,7 @@ munchExp (Mem (Binop Minus (Const i) e1)) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl " ++ show (-i) ++ "(`s0)" ++ ", `d0"
+        massem = "movl `d0, [`s0  - " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -104,7 +104,7 @@ munchExp (Mem (Name l)) = do
     let label = unpack l
     dest <- newTemp
     emit Oper {
-        oassem = "movl (" ++ label ++ "), `d0"
+        oassem = "movl `d0, [" ++ label ++ "]"
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -116,23 +116,23 @@ munchExp (Binop oper e1 e2) = do
     case oper of
         Plus -> do
             emit Oper {
-                oassem = "addl `s0,`s1"
+                oassem = "addl `s1,`s0"
                ,osrc = [t1,t2]
-               ,odest = [t1]
+               ,odest = [t2]
                ,ojump = Nothing
             }
             return t1
         Minus ->  do
             emit Oper {
-                oassem = "subl `s0,`s1"
+                oassem = "subl `s1,`s0"
                ,osrc = [t1,t2]
-               ,odest = [t1]
+               ,odest = [t2]
                ,ojump = Nothing
             }
             return t1
         Mul -> do 
             emit Mov {
-                massem = "movl `s0, `d0"
+                massem = "movl `d0, `ds"
                ,msrc = t1
                ,mdest = eax
             }
@@ -145,7 +145,7 @@ munchExp (Binop oper e1 e2) = do
             return eax
         Div -> do 
             emit Mov {
-                massem = "movl `s0,`d0`"
+                massem = "movl `d0,`s0"
                ,msrc = t1
                ,mdest = eax
             }
@@ -158,17 +158,17 @@ munchExp (Binop oper e1 e2) = do
             return eax
         And -> do
             emit Oper {
-                oassem = "and `s0,`s1"
+                oassem = "and `s1,`s0"
                ,osrc = [t1,t2]
-               ,odest = [t1]
+               ,odest = [t2]
                ,ojump = Nothing
             }
             return t1
         Or -> do
             emit Oper {
-                oassem = "or `s0,`s1"
+                oassem = "or `s1,`s0"
                ,osrc = [t1,t2]
-               ,odest = [t1]
+               ,odest = [t2]
                ,ojump = Nothing
             }
             return t1
@@ -176,7 +176,7 @@ munchExp (Binop oper e1 e2) = do
 munchExp (Mem (Const i)) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl (" ++ show i ++ "), `d0"
+        oassem = "movl `d0, [" ++ show i ++ "]"
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -186,7 +186,7 @@ munchExp (Mem e) = do
     t <- munchExp e
     dest <- newTemp
     emit Oper {
-        oassem = "movl (`s0),`d0"
+        oassem = "movl `d0, [`s0]"
        ,odest = [dest]
        ,osrc = [t]
        ,ojump = Nothing
@@ -200,7 +200,7 @@ munchExp (Eseq s e) = do
 munchExp (Const n) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl $" ++ show n ++ ", `d0"
+        oassem = "movl `d0, " ++  show n 
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -209,7 +209,7 @@ munchExp (Const n) = do
 munchExp (Name l) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl (" ++ show l ++ "), `d0"
+        oassem = "movl `d0, [" ++ show l ++ "]"
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -223,7 +223,7 @@ munchStm (Move (Mem e1) e2) = do
     t1 <- munchExp e1
     t2 <- munchExp e2
     emit Mov {
-        massem = "movl `s0, (`d0)"
+        massem = "movl [`d0], `s0"
         ,msrc = t2
         ,mdest = t1
     }
@@ -232,7 +232,7 @@ munchStm (Move (Name l1) e2) = do
     t2 <- munchExp e2
     let label = unpack l1
     emit Oper {
-        oassem = "movl `s0, (label)"
+        oassem = "movl [label], `s0"
         ,osrc = [t2]
         ,odest = []
         ,ojump = Nothing
@@ -242,7 +242,7 @@ munchStm (Move e1 e2) = do
     t2 <- munchExp e2
     t1 <- munchExp e1
     emit Mov {
-        massem = "movl `s0, `d0"
+        massem = "movl `d0, `s0"
        ,msrc = t2
        ,mdest = t1
     }
@@ -336,7 +336,7 @@ munchStm (Pop t) = do
     }
 munchStm (AddStack i) = do
     emit Oper {
-        oassem = ins ++ " $" ++ show i ++ ", `d0"
+        oassem = ins ++ " `d0, " ++ show i 
         ,osrc = []
         ,odest = [sp]
         ,ojump = Nothing
@@ -373,11 +373,11 @@ instance TLGenerator Emit where
     newTemp = do estado <- get
                  let u = unique estado
                  put estado{unique = u + 1}
-                 return $ pack ("Temp_" ++ show u)
+                 return $ pack ("t" ++ show u)
     newLabel = do estado <- get
                   let u = unique estado
                   put estado{unique = u + 1}
-                  return $ pack ("Label_" ++ show u)
+                  return $ pack ("L" ++ show u)
 
 instance Emisor Emit where 
     emit ins = do
