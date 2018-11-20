@@ -23,7 +23,7 @@ munchArgs [] = return ()
 munchArgs (es) = do
     t <- munchExp $ P.last es
     emit Oper {
-        oassem = "pushl `s0"
+        oassem = "push `s0"
        ,osrc = [t]
        ,odest = [sp]
        ,ojump = Nothing
