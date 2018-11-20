@@ -1,7 +1,6 @@
 module TigerShow where
 
 import TigerEmit
-import TigerFrame
 import TigerTemp
 import Text.Regex
 import Data.Text as T
@@ -11,8 +10,6 @@ type Coloreador = Temp -> Temp
 naiveColorer :: Coloreador
 naiveColorer = id
 
-printBlock :: Coloreador -> Frame -> [Assem] -> String
-printBlock colores frame assems = T.unpack (name frame) ++ ":\n" ++ printInstrs colores assems
 
 applyDests :: Coloreador -> [Temp] -> String  -> String
 applyDests colores registros instruccion = applyTemps "`d" colores registros instruccion 0
@@ -35,7 +32,7 @@ printInstr colores (Lab label _) = label
 
 printInstrs :: Coloreador ->  [Assem] -> String
 printInstrs colores  instrucciones = 
-    P.foldr
-        (\instruccion codigo -> codigo ++  printInstr colores  instruccion ++ "\n")
+    P.foldl
+        (\codigo instruccion-> codigo ++  printInstr colores  instruccion ++ "\n")
         ""
         instrucciones

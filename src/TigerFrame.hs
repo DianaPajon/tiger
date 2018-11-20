@@ -2,7 +2,7 @@ module TigerFrame where
 
 import           TigerTemp
 import           TigerTree
-
+import           TigerAssem
 import           TigerSymbol
 
 import           Prelude     hiding (exp)
@@ -69,7 +69,7 @@ sepFrag xs = (reverse ass, reverse stmss)
     where
         (ass, stmss) = foldl (\ (lbls,stms) x ->
             case x of
-                Proc st fr -> (lbls, (procEntryExit2 fr st,fr) : stms)
+                Proc st fr -> (lbls, (st,fr) : stms)
                 AString {} -> (x:lbls, stms)
                 ) ([],[]) xs
 
@@ -82,17 +82,19 @@ seqs [s]    = s
 seqs (x:xs) = Seq x (seqs xs)
 
 
-procEntryExit2 :: Frame -> Stm -> Stm
-procEntryExit2 frame stm = seqs [
-    Push (Temp fp),
-    Move (Temp fp) (Temp sp),
-    AddStack (stackSize frame),
-    stm,
-    AddStack (0 - stackSize frame),
-    Pop  fp,
-    Ret
- ]
- where stackSize f = wSz * actualLocal f
+procEntryExit2 :: Frame -> [Assem] -> [Assem]
+procEntryExit2 frame stmts = [
+        Lab {lassem = (unpack $ name frame)++ ":", label=name frame },
+        Oper {oassem = "push `s0", osrc=[fp], odest=[sp],ojump=Nothing },
+        Mov {massem = "movl `d0, `s0", mdest=fp, msrc=sp},
+        Oper {oassem = "addl `d0, " ++ show (stackSize frame), osrc = [], odest = [sp], ojump = Nothing}
+    ] ++ stmts ++ [
+        Oper {oassem = "subl `d0, " ++ show (stackSize frame), osrc = [], odest = [sp], ojump = Nothing},
+        Oper {oassem = "pop `d0", osrc = [], odest = [fp], ojump = Nothing},
+        Oper {oassem = "ret", osrc = [], odest = [], ojump = Nothing}
+    ]
+  where stackSize f = wSz * actualLocal f
+
 instance Show Frag where
     show (Proc s f) = "Frame:" ++ show f ++ '\n': show s
     show (AString l ts) = show l ++ ":\n" ++ (foldr (\t ts -> ("\n\t" ++ unpack t) ++ ts) "" ts)

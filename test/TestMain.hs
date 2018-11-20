@@ -68,11 +68,19 @@ tigerHastaAssem programa = do
                     let 
                         (codigoGenerado,nuevoSeed) = codegen stmts unique
                     in
-                        ((codigoGenerado,frame):programas, nuevoSeed)
+                        ((procEntryExit2 frame codigoGenerado ,frame):programas, nuevoSeed)
                 )
                 ([],seed)
                 frags
-                
+
+tigerHastaTranslate :: String -> TigerStage ([Frag], Integer)
+tigerHastaTranslate programa = do
+    expresionSinEscapar <- parserStage programa
+    expresionEscapada <- escapStage expresionSinEscapar
+    translateStage expresionEscapada
+
+
+
 parserStage :: String -> Either [Errores] TigerAbs.Exp
 parserStage s = either (\err -> Left [Error $ T.pack $ "Error de parsing:" ++ show err] ) (\exp -> Right exp) (parse s)
 
@@ -111,13 +119,21 @@ dirtyTestAssem :: String -> String -> Either [Errores] [([Assem], Frame)]
 dirtyTestAssem dir file = tigerHastaAssem programa
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
+imprimirFrags :: String -> String -> IO ()
+imprimirFrags dir file = do
+    let frags = fst $ right $ tigerHastaTranslate $ unsafePerformIO (readFile (dir ++ '/' : file))
+    let strings = P.map (renderFrag) frags
+    nadas <- mapM putStrLn strings
+    return ()
+
 imprimirAssembler :: String -> String -> IO ()
 imprimirAssembler dir file = do
     let bloques = right $ dirtyTestAssem dir file
     nada <- mapM (\(ins, fr) -> mostrarBloque ins fr) bloques
     return ()
+
 mostrarBloque :: [Assem] -> Frame -> IO ()
-mostrarBloque inss frame = putStrLn $ printBlock naiveColorer  frame inss
+mostrarBloque inss frame = putStrLn $ printInstrs naiveColorer inss
 
 showAssem :: [Assem] -> String
 showAssem (i@(Oper assembly dest src _):is) = 

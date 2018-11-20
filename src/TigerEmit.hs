@@ -8,26 +8,11 @@ import TigerTemp
 import Data.Text
 import TigerFrame
 import TigerCanon
+import TigerAssem
 import Data.Map as M
 import Control.Monad.State
 
 
-data Assem =
-    Oper {
-        oassem :: String, 
-        odest :: [Temp], 
-        osrc :: [Temp], 
-        ojump :: Maybe [Label]
-    }
-  | Lab {
-        lassem :: String,
-        label :: Label
-   }
-  | Mov {
-        massem :: String,
-        mdest :: Temp,
-        msrc :: Temp
-  } deriving (Eq, Show)
 
 class (Monad w, TLGenerator w) => Emisor w where
     emit :: Assem -> w ()
@@ -209,7 +194,7 @@ munchExp (Const n) = do
 munchExp (Name l) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [" ++ show l ++ "]"
+        oassem = "movl `d0, [" ++ unpack l ++ "]"
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -305,51 +290,6 @@ munchStm (Seq s1 s2) = do
     munchStm s1
     munchStm s2
     return ()
-munchStm (Push (Const n)) = do
-    emit Oper {
-        oassem = "push $" ++ show n
-       ,osrc = []
-       ,odest = [sp]
-       ,ojump = Nothing
-    }
-munchStm (Push (Temp t)) = do
-    emit Oper {
-        oassem = "push `s0`"
-        ,osrc = [t]
-        ,odest = [sp]
-        ,ojump = Nothing
-    }
-munchStm (Push e) = do
-    t <- munchExp e
-    emit Oper {
-        oassem = "push `s0"
-        ,osrc = [t]
-        ,odest = [sp]
-        ,ojump = Nothing
-    }
-munchStm (Pop t) = do
-    emit Oper {
-        oassem = "pop `d0"
-       ,osrc = []
-       ,odest = [t]
-       ,ojump = Nothing
-    }
-munchStm (AddStack i) = do
-    emit Oper {
-        oassem = ins ++ " `d0, " ++ show i 
-        ,osrc = []
-        ,odest = [sp]
-        ,ojump = Nothing
-    }
- where ins = if i >= 0 then "addl" else "subl"
-munchStm Ret = do
-    emit Oper {
-        oassem = "ret"
-        ,osrc = []
-        ,odest = [sp]
-        ,ojump = Nothing
-    }
-
 
 munchStmts :: (Emisor e) =>  [Stm] -> e ()
 munchStmts [] = return ()
