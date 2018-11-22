@@ -57,7 +57,13 @@ agregarArista (Grafo vs as) (x,y) =
         (S.insert (x,y) as)
 
 agregarAristas ::  Grafo a -> [(a,a)] -> Grafo a
-agregarAristas as grafo = P.foldl agregarArista  as grafo
+agregarAristas grafo as = P.foldl agregarArista  grafo as
+
+agregarArco :: Grafo a -> (a,a) -> Grafo a
+agregarArco grafo (x,y) = agregarArista (agregarArista grafo (x,y)) (y,x)
+
+agregarArcos :: Grafo a -> [(a,a)] -> Grafo a
+agregarArcos grafo aristas = P.foldl agregarArco grafo aristas
 
 grafoVacio :: (Eq a, Show a, Ord a) =>  Grafo a
 grafoVacio = Grafo S.empty S.empty

@@ -1,4 +1,4 @@
-module TigerLiveness  where
+module TigerLiveness (liveness)  where
 
 import TigerTemp
 import TigerSymbol
@@ -83,20 +83,19 @@ grafoFlow lista =
   let nodos = nodosBase lista
   in agregarAristasJumps (agregarAristasBase (agregarVertices grafoVacio nodos) nodos) [] nodos
 
-data LivenessInfo a = Info {
+data FlowInfo a = Info {
   nodo :: FlowNode a,
   liveIn :: Set Temp,
   liveOut :: Set Temp
 } deriving (Eq, Show)
   
 
-startLiveness :: [FlowNode Assem] -> [LivenessInfo Assem]
-startLiveness [] = []
-startLiveness (n:ns) = (Info n S.empty S.empty) : startLiveness ns
+startLiveness :: [FlowNode Assem] -> [FlowInfo Assem]
+startLiveness ns = P.map (\n -> Info n S.empty S.empty ) ns
 
 
 --Iteracion del algoritmo de punto fijo
-iteracionLiveness :: (FlowGraph Assem, [LivenessInfo Assem]) -> (FlowGraph Assem, [LivenessInfo Assem])
+iteracionLiveness :: (FlowGraph Assem, [FlowInfo Assem]) -> (FlowGraph Assem, [FlowInfo Assem])
 iteracionLiveness (grafo,infos) = (grafo,) $
   P.map 
     (\info -> info{
@@ -108,23 +107,30 @@ iteracionLiveness (grafo,infos) = (grafo,) $
        getNodo n (m:ms) = if ( n == nodo m) then m else getNodo n ms
 
 --Algoritmo de punto fijo propiamente dicho.
-buscarPuntoFijo :: FlowGraph Assem -> [LivenessInfo Assem] -> [LivenessInfo Assem] 
+buscarPuntoFijo :: FlowGraph Assem -> [FlowInfo Assem] -> [FlowInfo Assem] 
 buscarPuntoFijo grafo info = 
   if (info == info'  && (aristas grafo /= S.empty))
     then info
     else buscarPuntoFijo grafo info'
  where (grafo', info') = iteracionLiveness (grafo, info)
 
---Calculo de livenewss
-liveness :: [Assem] -> [LivenessInfo ()]
-liveness assems =
+--Calculo de flujo
+flow :: [Assem] -> [FlowInfo ()]
+flow assems =
   let 
     nodos = nodosBase assems
     puntoFijo = buscarPuntoFijo (grafoFlow  assems) (startLiveness nodos)
   in P.map (\li -> li{nodo = (nodo li){dato = ()}}) puntoFijo
 
---DEBUGGING EXTRAS
+--Calculo de Interferencia:
+interf :: [FlowInfo ()] -> Grafo Temp
+interf [] = grafoVacio
+interf (info:infos) = agregarArcos (interf infos) arcos
+  where
+    arcos = 
+      if move $ nodo info
+      then [(x,y) | x <- elems (def $ nodo info), y <- P.filter (/= (P.head $ elems (use  $ nodo info))) $ elems $ liveOut info]
+      else [(x,y) | x <- elems (def $ nodo info), y <-  elems (liveOut info)]
 
-verEstado :: [LivenessInfo a] -> Integer -> String
-verEstado [] n = ""
-verEstado (s:ss) n = (show n) ++ ": " ++ "nodo: " ++ show (nodo s) ++ "\nins:" ++ show (liveIn s) ++ "\nouts:" ++ show (liveOut s) ++ "\n" ++ verEstado ss (n+1)
+liveness :: [Assem] -> Grafo Temp
+liveness = interf . flow
