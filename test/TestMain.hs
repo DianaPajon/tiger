@@ -43,8 +43,8 @@ main =
     testDir bad_loc (testBad bad_loc tester) >>
     putStrLn "\n======= Test FIN ======="
 
-tester :: String -> Either [Errores] [([Assem],Frame)]
-tester s = (\ !a -> a ) (tigerHastaAssem s)
+tester :: String -> Either [Errores] [Grafo Temp]
+tester s = (\ !a -> a ) (tigerHastaLiveness s)
 
 type TigerStage = Either [Errores]
 
