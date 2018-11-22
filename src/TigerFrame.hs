@@ -91,7 +91,7 @@ procEntryExit2 frame stmts = [
     ] ++ stmts ++ [
         Oper {oassem = "subl `d0, " ++ show (stackSize frame), osrc = [], odest = [sp], ojump = Nothing},
         Oper {oassem = "pop `d0", osrc = [], odest = [fp], ojump = Nothing},
-        Oper {oassem = "ret", osrc = [], odest = [], ojump = Nothing}
+        Oper {oassem = "ret", osrc = [eax], odest = [], ojump = Nothing}
     ]
   where stackSize f = wSz * actualLocal f
 

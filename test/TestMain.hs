@@ -18,6 +18,7 @@ import TigerPrettyIr
 import TigerAbs
 import TigerEmit
 import TigerShow
+import TigerLiveness
 import Data.Text as T
 import qualified TigerEscap as E
 import System.IO.Unsafe
@@ -51,6 +52,12 @@ instance Monad TigerStage where
     (>>=) (Right a) f = f a
     (>>=) (Left err) f = Left err
 -}
+
+tigerHastaLiveness :: String -> TigerStage [[LivenessInfo ()]]
+tigerHastaLiveness programa = do
+    frames <- tigerHastaAssem programa
+    return $  P.map (\(instrucciones, frame) -> liveness instrucciones) frames
+
 
 
 tigerHastaAssem :: String -> TigerStage [([Assem], Frame)]
@@ -108,15 +115,19 @@ programaPrueba =
       (StringExp "hola" unicaPosicion)
       unicaPosicion
   
-runTranslate :: TigerAbs.Exp -> Either [Errores] ([Frag],Estado)
+runTranslate :: TigerAbs.Exp -> TigerStage ([Frag],Estado)
 runTranslate expre = runStateT (transProg expre :: TigerState [Frag])  initConf
 
 
 quickTest :: String -> String -> IO ()
 quickTest dir file = test dir (badRes . show) (const $ bluenice) tester file
 
-dirtyTestAssem :: String -> String -> Either [Errores] [([Assem], Frame)]
+dirtyTestAssem :: String -> String -> TigerStage [([Assem], Frame)]
 dirtyTestAssem dir file = tigerHastaAssem programa
+   where programa = unsafePerformIO (readFile (dir ++ '/' : file))
+
+dirtyTestLiveness :: String -> String -> TigerStage [[LivenessInfo ()]]
+dirtyTestLiveness dir file = tigerHastaLiveness programa
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
 imprimirFrags :: String -> String -> IO ()

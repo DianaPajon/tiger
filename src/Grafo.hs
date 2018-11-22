@@ -2,6 +2,7 @@ module Grafo where
 
 import Data.Set as S
 --Ponele que sea útil la clase
+import Prelude as P
 
 data Grafo a where
     Grafo :: (Eq a, Show a, Ord a) => S.Set a -> S.Set (a,a) -> Grafo a
@@ -32,6 +33,9 @@ vertices (Grafo vs as) = vs
 agregarVertice :: Grafo a -> a -> Grafo a
 agregarVertice (Grafo vs as) v = Grafo (insert v vs) as
 
+agregarVertices :: Grafo a -> [a] -> Grafo a
+agregarVertices  grafo vs = P.foldl agregarVertice  grafo vs
+
 eliminarVertice :: Grafo a -> a -> Grafo a
 eliminarVertice (Grafo vs as) v =
     Grafo
@@ -51,4 +55,13 @@ agregarArista (Grafo vs as) (x,y) =
     Grafo
         (S.insert x (S.insert y vs))
         (S.insert (x,y) as)
+
+agregarAristas ::  Grafo a -> [(a,a)] -> Grafo a
+agregarAristas as grafo = P.foldl agregarArista  as grafo
+
+grafoVacio :: (Eq a, Show a, Ord a) =>  Grafo a
+grafoVacio = Grafo S.empty S.empty
 --eliminarArista :: (Eq a) => (a,a) -> g a
+--DEBUGGING EXTRAS
+tieneArista :: Ord a => (a,a) -> Grafo a -> Bool
+tieneArista arista grafo = S.member arista (aristas grafo)
