@@ -19,6 +19,8 @@ import TigerAbs
 import TigerEmit
 import TigerShow
 import TigerLiveness
+import TigerTemp
+import Grafo
 import Data.Text as T
 import qualified TigerEscap as E
 import System.IO.Unsafe
@@ -53,7 +55,7 @@ instance Monad TigerStage where
     (>>=) (Left err) f = Left err
 -}
 
-tigerHastaLiveness :: String -> TigerStage [[LivenessInfo ()]]
+tigerHastaLiveness :: String -> TigerStage [Grafo Temp]
 tigerHastaLiveness programa = do
     frames <- tigerHastaAssem programa
     return $  P.map (\(instrucciones, frame) -> liveness instrucciones) frames
@@ -126,9 +128,9 @@ dirtyTestAssem :: String -> String -> TigerStage [([Assem], Frame)]
 dirtyTestAssem dir file = tigerHastaAssem programa
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
-dirtyTestLiveness :: String -> String -> TigerStage [[LivenessInfo ()]]
-dirtyTestLiveness dir file = tigerHastaLiveness programa
-   where programa = unsafePerformIO (readFile (dir ++ '/' : file))
+--dirtyTestLiveness :: String -> String -> TigerStage [[LivenessInfo ()]]
+--dirtyTestLiveness dir file = tigerHastaLiveness programa
+   --where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
 imprimirFrags :: String -> String -> IO ()
 imprimirFrags dir file = do
