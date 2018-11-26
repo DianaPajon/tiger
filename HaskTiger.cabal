@@ -43,6 +43,7 @@ library
       -- Tercer entrega. So vo.
         , TigerEmit
         , TigerLiveness
+        , TigerAllocation
   other-modules: Grafo
   build-depends:       base
                        , containers
@@ -122,6 +123,7 @@ test-suite HaskTiger-test
                  TigerUnique
                  TigerLiveness
                  Grafo
+                 TigerAllocation
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-extensions: FlexibleInstances
                   , TypeFamilies

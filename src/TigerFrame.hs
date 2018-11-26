@@ -52,7 +52,7 @@ argsGap = 8
 localsGap = -4
 
 argsInicial = 0
-regInicial = 1
+regInicial = 0
 localsInicial = 0
 
 calldefs = [rv]
@@ -60,7 +60,7 @@ specialregs = [rv, fp, sp]
 calleesaves = [eax,ecx,edx]
 callersaves = [ebx,fp,sp]
 argregs = [] --Todos los parametros a stack.
-data Access = InFrame Int | InReg Temp
+data Access = InFrame Int | InReg Temp | InTemp Int
     deriving Show
 data Frag = Proc Stm Frame | AString Label [Symbol]
 
@@ -87,13 +87,12 @@ procEntryExit2 frame stmts = [
         Lab {lassem = (unpack $ name frame)++ ":", label=name frame },
         Oper {oassem = "push `s0", osrc=[fp], odest=[sp],ojump=Nothing },
         Mov {massem = "movl `d0, `s0", mdest=fp, msrc=sp},
-        Oper {oassem = "addl `d0, " ++ show (stackSize frame), osrc = [], odest = [sp], ojump = Nothing}
+        Oper {oassem = "addl `d0, " ++ show (frameSize frame), osrc = [], odest = [sp], ojump = Nothing}
     ] ++ stmts ++ [
-        Oper {oassem = "subl `d0, " ++ show (stackSize frame), osrc = [], odest = [sp], ojump = Nothing},
+        Oper {oassem = "subl `d0, " ++ show (frameSize frame), osrc = [], odest = [sp], ojump = Nothing},
         Oper {oassem = "pop `d0", osrc = [], odest = [fp], ojump = Nothing},
         Oper {oassem = "ret", osrc = [eax], odest = [], ojump = Nothing}
     ]
-  where stackSize f = wSz * actualLocal f
 
 instance Show Frag where
     show (Proc s f) = "Frame:" ++ show f ++ '\n': show s
@@ -144,6 +143,31 @@ allocLocal fr False = do
     s <- newTemp
     return (fr, InReg s)
 
+nextTemp :: Frame -> Int
+nextTemp fr = localsGap + (-wSz)*(actualLocal fr + actualReg fr)
+
+frameSize :: Frame -> Int
+frameSize fr = wSz * (actualLocal fr + actualReg fr)
+{-
+Estructura del Frame
+arg n <------------ fp +4 + wSz * nArg
+...
+arg 2 <------------ fp +4 + wSz * nArg
+arg 1 <------------ fp +4 + wSz * nArg
+ret addr <--------- fp +4
+static link <---------------- fp
+local 1 <------------ fp - wSz*nLocal
+local 2
+local 3
+...
+local n <------------ fp - wSz*(cant locales)
+temp 1 <------------ fp - wSz*(cant locales)
+...
+temp n <------------- SP= fp - wSz*(cant locales + cant temporales)
+-}
+
+
+--TODO: Reescribir TigerTrans para que use este código.
 auxexp :: Int -> Exp
 auxexp 0 = Temp fp
 auxexp n = Mem(Binop Plus (auxexp (n-1)) (Const fpPrevLev))
