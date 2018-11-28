@@ -67,7 +67,6 @@ agregarArcos grafo aristas = P.foldl agregarArco grafo aristas
 
 grafoVacio :: (Eq a, Show a, Ord a) =>  Grafo a
 grafoVacio = Grafo S.empty S.empty
---eliminarArista :: (Eq a) => (a,a) -> g a
---DEBUGGING EXTRAS
-tieneArista :: Ord a => (a,a) -> Grafo a -> Bool
-tieneArista arista grafo = S.member arista (aristas grafo)
+
+aristasIncidentes :: Grafo a -> a -> Set (a,a)
+aristasIncidentes (Grafo vertices aristas) vertice = S.filter (\(a,b) -> a == vertice || b == vertice) aristas

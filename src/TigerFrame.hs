@@ -29,10 +29,17 @@ ecx = pack "ecx"
 edx :: Temp
 edx = pack "edx"
 
+esi :: Temp
+esi = pack "esi"
+
+edi :: Temp
+edi = pack "edi"
+
+
 
 -- | Return value
 rv :: Temp
-rv = pack "eax"
+rv = eax
 
 -- | Word size in bytes
 wSz :: Int
@@ -55,10 +62,12 @@ argsInicial = 0
 regInicial = 0
 localsInicial = 0
 
+registrosGenerales = [eax,ebx,ecx,edx,esi,edi]
+todosLosRegistros = [eax,ebx,ecx,edx,esi,edi,fp,sp]
 calldefs = [rv]
 specialregs = [rv, fp, sp]
-calleesaves = [eax,ecx,edx]
-callersaves = [ebx,fp,sp]
+calleesaves = [rv,ecx,edx]
+callersaves = [ebx,fp,sp,esi,edi]
 argregs = [] --Todos los parametros a stack.
 data Access = InFrame Int | InReg Temp | InTemp Int
     deriving Show
