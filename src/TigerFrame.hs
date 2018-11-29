@@ -63,6 +63,7 @@ regInicial = 0
 localsInicial = 0
 
 registrosGenerales = [eax,ebx,ecx,edx,esi,edi]
+k = Prelude.length registrosGenerales
 todosLosRegistros = [eax,ebx,ecx,edx,esi,edi,fp,sp]
 calldefs = [rv]
 specialregs = [rv, fp, sp]

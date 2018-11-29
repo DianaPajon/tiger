@@ -70,3 +70,6 @@ grafoVacio = Grafo S.empty S.empty
 
 aristasIncidentes :: Grafo a -> a -> Set (a,a)
 aristasIncidentes (Grafo vertices aristas) vertice = S.filter (\(a,b) -> a == vertice || b == vertice) aristas
+
+conectados :: Grafo a -> a -> a -> Bool
+conectados (Grafo vertices aristas) a1 a2 = S.intersection (fromList [(a1,a2),(a2,a1)]) aristas /= S.empty 
