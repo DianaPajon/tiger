@@ -130,6 +130,45 @@ instance Allocator Alloc where
         updateCoalesce
         updateFreeze
         updateSpill
+    simplifyNode n = do
+        --Simplificar un nodo significa eliminarlo del grafo, pushearlo al stack y 
+        -- ... nada mas
+        estado <- get
+        let movs = moves estado
+        let grafo = interf estado
+        let grafo' = eliminarVertice grafo n
+        let movs' = S.filter (\(o,d) -> o /= n && d /= n) movs
+        put estado{interf = grafo', moves = movs',stack=(n,grafo,movs):(stack estado)}
+        updateSimplify
+        updateCoalesce
+        updateFreeze
+        updateSpill
+    freezeNode n = do
+        estado <- get
+        let movs = moves estado
+        let movs' = S.filter (\(o,d) -> o /= n && d /= n) movs
+        put estado{moves = movs'}
+        updateSimplify
+        updateCoalesce
+        updateFreeze
+        updateSpill
+    spillNode n = do
+        --Para spillear, primero reconstruyo el grafo original, me quedo con el nodo
+        --de mayor grado y lo spilleo puntualmente, luego... reconstruyo todo de nuevo
+        --PORQUE PUEDO.
+        start --Tengo un estado original, de nuevo.
+        let nodos = P.map (\n -> S.singleton n) $ toList n
+        grados <- mapM deg nodos
+        let nodosGrados = P.zip nodos $ P.map (\n -> fromMaybe 999999 n) grados
+        --Como estan siendo elegidos para spill, NINGUNO está precoloreado, porque uno precoloreado precolorea el nodo.
+        let nodosOrdenados = L.sortBy (\(_,g1) (_,g2) -> compare g2 g1 ) nodosGrados
+        let tempElegido = P.head $ toList $ P.head $ P.map (\(a,b) -> a) nodosOrdenados
+        estado <- get
+        (assems', frame') <- spillTemp (assembly estado) (frame estado) tempElegido
+        put estado{assembly = assems', frame=frame'}
+        start
+        return ()
+
     setBase assems frame = do
         estado <- get
         put estado{assembly = assems, frame = frame}
@@ -223,7 +262,7 @@ instance Allocator Alloc where
         maybeGrados <-  mapM deg (toList nodos)
         let grados = P.map (\x ->MB.fromMaybe 999999 x)  maybeGrados
         let nodosGrados = P.zip (toList nodos) grados
-        let nodosGradoAlto = P.filter (\(n,g) -> g >= k) nodosGrados
+        let nodosGradoAlto = P.filter (\(n,g) -> g >= k && g /= 999999) nodosGrados
         let worklist =  P.map (\(n,g) -> n) $ L.sortBy (\(_,g1) (_,g2) -> compare g2 g1) nodosGradoAlto
         put estado{spill = worklist}
         
