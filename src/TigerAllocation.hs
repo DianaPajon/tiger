@@ -10,6 +10,7 @@ import Prelude as P
 import Data.Text as T
 import Data.List as L
 import Data.Maybe as MB
+import Data.Map as M
 
 import Control.Monad.State
 
@@ -17,9 +18,7 @@ type Nodo = Set Temp --Uso esta generalización para poder representar nodos "co
 
 data AllocState = 
  AS {
-     assembly :: [Assem]
-    ,frame :: Frame
-    ,stack :: [(Nodo, Grafo Nodo, Set (Nodo, Nodo))] --Stack del grafo de liveness.
+     stack :: [(Nodo, Grafo Nodo)] --Stack del grafo de liveness.
     ,interf :: Grafo Nodo
     ,moves :: Set (Nodo, Nodo)
     ,simplify :: [Nodo]
@@ -27,7 +26,6 @@ data AllocState =
     ,freeze :: [Nodo]
     ,spill :: [Nodo]
     ,unique :: Integer
-    ,colores :: Set (Temp, Temp) --Colores asignados.
   }
 
 
@@ -37,14 +35,13 @@ data AllocState =
 --BTW: ¿Para que voy a usar una clase si no tiene ningún tipo de abstracción?.
 class (Monad a, TLGenerator a) => Allocator a where
     push :: Nodo -> a ()
-    pop :: a Nodo
     deg :: Nodo -> a (Maybe Int)
     neg :: Nodo -> a (Set Nodo)
     precolored :: Nodo -> a Bool
     simplifyNode :: Nodo -> a ()
-    coalesceNodes :: Nodo -> Nodo -> a () --Redefine todo el estado, hacer un coalesce.
+    coalesceNodes :: (Nodo, Nodo) -> a () --Redefine todo el estado, hacer un coalesce.
     freezeNode :: Nodo -> a ()
-    spillNode :: Nodo -> a ()
+    spillNode :: [Assem] -> Frame -> Nodo -> a ([Assem], Frame)
     simplifyWorkList :: a [Nodo]
     updateSimplify :: a ()
     coalesceWorkList :: a [(Nodo,Nodo)]
@@ -53,13 +50,12 @@ class (Monad a, TLGenerator a) => Allocator a where
     updateFreeze :: a ()
     spillWorkList :: a [Nodo]
     updateSpill :: a ()
-    setBase :: [Assem] -> Frame -> a ()
-    getBase :: a ([Assem], Frame)
-    start :: a ()
+    start :: [Assem] -> Frame -> a ()
+    allocMain :: [Assem] -> Frame -> a ([Assem],Frame)
 
-type Alloc  = State AllocState
+type AllocST  = State AllocState
 
-instance TLGenerator Alloc where
+instance TLGenerator AllocST where
     newTemp = do estado <- get
                  let u = unique estado
                  put estado{unique = u + 1}
@@ -69,10 +65,10 @@ instance TLGenerator Alloc where
                   put estado{unique = u + 1}
                   return $ T.pack ("L" ++ show u)
  
-instance Allocator Alloc where
+instance Allocator AllocST where
     push n = do
         estado <- get
-        let nuevoStack = (n, interf estado, moves estado):(stack estado)
+        let nuevoStack = (n, interf estado):(stack estado)
         let nuevoGrafo = eliminarVertice (interf estado) n
         let nuevosMoves = S.filter (\(t1,t2) -> (S.intersection t1 n == S.empty) && (S.intersection t1 n == S.empty)) $ moves estado
         put estado{interf = nuevoGrafo, stack = nuevoStack, moves = nuevosMoves}
@@ -80,15 +76,6 @@ instance Allocator Alloc where
         updateCoalesce
         updateFreeze
         updateSpill
-    pop = do 
-        estado <- get
-        let (nodo,interf0,moves0):ss = stack estado
-        put estado{interf = interf0, moves = moves0, stack = ss}
-        updateSimplify
-        updateCoalesce
-        updateFreeze
-        updateSpill
-        return nodo
     deg n = do
         estado <- get
         infinito <- precolored n
@@ -97,7 +84,7 @@ instance Allocator Alloc where
             else do 
                 let grafo = interf estado
                 let vecinos = S.union (G.pred grafo n) (G.succ grafo n) 
-                return $ Just $ size vecinos
+                return $ Just $ S.size vecinos
     neg n = do
         estado <- get
         let grafo = interf estado
@@ -105,24 +92,24 @@ instance Allocator Alloc where
         return  vecinos
     precolored n = do --pre está de mas.
         estado <- get
-        let coloresDados = colores estado
-        let coloreados = S.map (\(s,t) -> s) coloresDados
+        let coloresDados = coloresBase
+        let coloreados = S.map (\(s,t) -> s) $ S.fromList $ M.toAscList coloresDados
         return $  S.intersection n coloreados /= S.empty -- ¿Y si coalesceo al FP, o al SP?
-    coalesceNodes n1 n2 = do
+    coalesceNodes (n1, n2) = do
         estado <- get
         let grafo = interf estado --Código ..."imperativo"
         let incidentes1 = aristasIncidentes grafo n1
         let incidentes2 = aristasIncidentes grafo n2
         let nuevoNodo = S.union n1 n2
-        let nuevasIncidentes1 = S.map (\(a,b) -> (reemplazar n1 nuevoNodo a , reemplazar n1 nuevoNodo b)) incidentes1
-        let nuevasIncidentes2 = S.map (\(a,b) -> (reemplazar n2 nuevoNodo a , reemplazar n2 nuevoNodo b)) incidentes2
-        let nuevasIncidentes = S.union nuevasIncidentes1 nuevasIncidentes2
+        let nuevasIncidentes1 = S.map (\(a,b) -> (reemplazarL [n1,n2] nuevoNodo a , reemplazarL [n1,n2] nuevoNodo b)) incidentes1
+        let nuevasIncidentes2 = S.map (\(a,b) -> (reemplazarL [n1,n2] nuevoNodo a , reemplazarL [n1,n2] nuevoNodo b)) incidentes2
+        let nuevasIncidentes = S.filter (\(a,b) -> a /= b) $ S.union nuevasIncidentes1 nuevasIncidentes2
         let grafoBase = eliminarVertice (eliminarVertice grafo n1) n2
-        let nuevoInterf = agregarAristas (agregarVertice grafoBase nuevoNodo) (toList nuevasIncidentes)
+        let nuevoInterf = agregarAristas (agregarVertice grafoBase nuevoNodo) (S.toList nuevasIncidentes)
         let movs1 = S.filter (\(a,b) -> a == n1 || b == n1) $ moves estado
         let movs2 = S.filter (\(a,b) -> a == n2 || b == n2) $ moves estado
-        let nuevosMovs1 = S.map (\(a,b) -> (reemplazar n1 nuevoNodo a, reemplazar n1 nuevoNodo b)) movs1
-        let nuevosMovs2 = S.map (\(a,b) -> (reemplazar n2 nuevoNodo a, reemplazar n2 nuevoNodo b)) movs2
+        let nuevosMovs1 = S.map (\(a,b) -> (reemplazarL [n1,n2] nuevoNodo a, reemplazarL [n1,n2] nuevoNodo b)) movs1
+        let nuevosMovs2 = S.map (\(a,b) -> (reemplazarL [n1,n2] nuevoNodo a, reemplazarL [n1,n2] nuevoNodo b)) movs2
         let movsFiltrados = S.filter (\(a,b) -> a /= n1 && a /= n2 && b /= n1 && b /= n2) $ moves estado
         let nuevosMoves = S.filter (\(a,b) -> a /= b) $ S.union movsFiltrados (S.union nuevosMovs1 nuevosMovs2)
         put estado{interf = nuevoInterf, moves = nuevosMoves}
@@ -130,6 +117,8 @@ instance Allocator Alloc where
         updateCoalesce
         updateFreeze
         updateSpill
+        estado <- get
+        put estado
     simplifyNode n = do
         --Simplificar un nodo significa eliminarlo del grafo, pushearlo al stack y 
         -- ... nada mas
@@ -138,7 +127,7 @@ instance Allocator Alloc where
         let grafo = interf estado
         let grafo' = eliminarVertice grafo n
         let movs' = S.filter (\(o,d) -> o /= n && d /= n) movs
-        put estado{interf = grafo', moves = movs',stack=(n,grafo,movs):(stack estado)}
+        put estado{interf = grafo', moves = movs',stack=(n,grafo):(stack estado)}
         updateSimplify
         updateCoalesce
         updateFreeze
@@ -152,38 +141,26 @@ instance Allocator Alloc where
         updateCoalesce
         updateFreeze
         updateSpill
-    spillNode n = do
+    spillNode assembly frame n = do
         --Para spillear, primero reconstruyo el grafo original, me quedo con el nodo
         --de mayor grado y lo spilleo puntualmente, luego... reconstruyo todo de nuevo
         --PORQUE PUEDO.
-        start --Tengo un estado original, de nuevo.
-        let nodos = P.map (\n -> S.singleton n) $ toList n
+        start assembly frame --Tengo un estado original, de nuevo.
+        let nodos = P.map (\n -> S.singleton n) $ S.toList n
         grados <- mapM deg nodos
         let nodosGrados = P.zip nodos $ P.map (\n -> fromMaybe 999999 n) grados
         --Como estan siendo elegidos para spill, NINGUNO está precoloreado, porque uno precoloreado precolorea el nodo.
         let nodosOrdenados = L.sortBy (\(_,g1) (_,g2) -> compare g2 g1 ) nodosGrados
-        let tempElegido = P.head $ toList $ P.head $ P.map (\(a,b) -> a) nodosOrdenados
+        let tempElegido = P.head $ S.toList $ P.head $ P.map (\(a,b) -> a) nodosOrdenados
         estado <- get
-        (assems', frame') <- spillTemp (assembly estado) (frame estado) tempElegido
-        put estado{assembly = assems', frame=frame'}
-        start
-        return ()
-
-    setBase assems frame = do
+        (assems', frame') <- spillTemp assembly frame tempElegido
+        return (assems', frame')
+    start assems frame = do
         estado <- get
-        put estado{assembly = assems, frame = frame}
-    getBase = do
-        estado <- get
-        return (assembly estado, frame estado)
-    start = do
-        estado <- get
-        (assems, frame) <- getBase
         let interferencias = liftGrafo (liveness assems)
         let moves = findMoves assems
-        put $  AS {
-            assembly = assems
-            ,frame = frame
-            ,stack = []
+        put $  AS { --Mantiene solamente el unique.
+            stack = []
             ,interf = interferencias
             ,moves = moves
             ,simplify = []
@@ -191,7 +168,6 @@ instance Allocator Alloc where
             ,freeze = []
             ,spill = []
             ,unique = unique estado
-            ,colores = coloresBase
         }
         updateSimplify
         updateCoalesce
@@ -215,21 +191,21 @@ instance Allocator Alloc where
         estado <- get
         let grafo = interf estado
         let nodos = vertices grafo
-        maybeGrados <-  mapM deg (toList nodos)
-        let grados = P.map (\x ->MB.fromMaybe 999999 x)  maybeGrados
-        let nodosGrados = P.zip (toList nodos) grados
-        let nodosGradoBajo = P.filter (\(n,g) -> g < k) nodosGrados
+        maybeGrados <-  mapM deg (S.toList nodos)
+        let nodosGrados = P.zip (S.toList nodos) maybeGrados
+        let nodosGradoBajo = P.filter (\(n,g) -> MB.maybe False (< k) g) nodosGrados
         let movs = moves estado
         let nodosSinMoves = P.filter (\(n,g) -> S.filter (\(a,b) -> a == n || b == n) movs == S.empty ) nodosGradoBajo
         let worklist =  P.map (\(n,g) -> n) $ L.sortBy (\(_,g1) (_,g2) -> compare g1 g2) nodosSinMoves
         put estado{simplify = worklist}
     updateCoalesce = do 
-        --esta formado por nodos que tienen muves entre ellos, no tiene interferencias 
+        --esta formado por nodos que tienen moves entre ellos, no tiene interferencias 
         --y al unir sus vecindarios recultan de grado menor que k
         estado <- get
         let grafo = interf estado
         let movs = moves estado
-        let movsSinInterf = toList $ S.filter (\(n1,n2) -> not $ conectados grafo n1 n2)  movs
+        let movsSinInterf0 = S.toList $ S.filter (\(n1,n2) -> not $ conectados grafo n1 n2)  movs
+        movsSinInterf <- filtrarPrecoloreados movsSinInterf0
         let movs1 = P.map (\(n1,n2) -> n1) movsSinInterf
         let movs2 = P.map (\(n1,n2) -> n2) movsSinInterf
         vec1 <- mapM neg movs1
@@ -247,10 +223,9 @@ instance Allocator Alloc where
         let grafo = interf estado
         let movs = moves estado
         let nodos = vertices grafo
-        maybeGrados <-  mapM deg (toList nodos)
-        let grados = P.map (\x ->MB.fromMaybe 999999 x)  maybeGrados
-        let nodosGrados = P.zip (toList nodos) grados
-        let nodosGradoBajo = P.filter (\(n,g) -> g < k) nodosGrados
+        maybeGrados <-  mapM deg (S.toList nodos)
+        let nodosGrados = P.zip (S.toList nodos) maybeGrados
+        let nodosGradoBajo = P.filter (\(n,g) -> MB.maybe False (< k) g) nodosGrados
         let nodosEnMoves = P.filter (\(n,g) -> elem n (S.map (\(x,y)->x) movs ) || elem n (S.map (\(x,y)->y) movs )  ) nodosGradoBajo
         let worklist = P.map (\(n,g) -> n) $ L.sortBy (\(n1,g1) (n2,g2) -> compare g1 g2) nodosEnMoves
         put estado{freeze = worklist}
@@ -259,60 +234,187 @@ instance Allocator Alloc where
         estado <- get
         let grafo = interf estado
         let nodos = vertices grafo
-        maybeGrados <-  mapM deg (toList nodos)
-        let grados = P.map (\x ->MB.fromMaybe 999999 x)  maybeGrados
-        let nodosGrados = P.zip (toList nodos) grados
-        let nodosGradoAlto = P.filter (\(n,g) -> g >= k && g /= 999999) nodosGrados
+        maybeGrados <-  mapM deg (S.toList nodos)
+        let nodosGrados = P.zip (S.toList nodos) maybeGrados
+        let nodosGradoAlto = P.filter (\(n,g) -> MB.maybe False (>= k) g ) nodosGrados
         let worklist =  P.map (\(n,g) -> n) $ L.sortBy (\(_,g1) (_,g2) -> compare g2 g1) nodosGradoAlto
         put estado{spill = worklist}
-        
-        
+    allocMain assembly frame = do
+        start assembly frame
+        consumirGrafo
+        estado <- get
+        let pila = stack estado
+        let grafoFinal = interf estado
+        let coloresIniciales = agregarColores (S.toList $ vertices grafoFinal) coloresBase
+        let colores = select coloresIniciales pila
+        case colores of 
+            Right mapa -> do
+                return $ (aplicarColores mapa assembly, frame)
+            Left nodo -> do
+                (assembly', frame') <- spillNode assembly frame nodo
+                allocMain assembly' frame'
 
+agregarColores :: [Nodo] -> Map Temp Temp -> Map Temp Temp
+agregarColores [] mapa = mapa
+agregarColores (n:ns) mapa = P.foldl (\m (k,v) -> M.insert k v m) (agregarColores ns mapa) (S.map (\t -> (t, MB.maybe t id (colorear n mapa))) n)
+
+consumirGrafo :: (Allocator a) => a ()
+consumirGrafo = do
+    simWL <- simplifyWorkList
+    coalWL <- coalesceWorkList
+    frWL <- freezeWorkList
+    spiWL <- spillWorkList
+    case (simWL, coalWL, frWL, spiWL) of
+        (a:as,_,_,_) -> do simplifyNode a
+                           consumirGrafo
+        ([],c:cs,_,_) -> do coalesceNodes c
+                            consumirGrafo
+        ([],[],f:fs,_) -> do freezeNode f
+                             consumirGrafo
+        ([],[],[],s:ss) -> do simplifyNode s 
+                              consumirGrafo
+        ([],[],[],[]) -> return ()
+
+aplicarColores :: Map Temp Temp -> [Assem] -> [Assem]
+aplicarColores mapa [] = []
+aplicarColores mapa ((Oper ensamblador destino origen jump):os) = (
+    Oper 
+    ensamblador
+    (P.map (\t -> buscarColor mapa t) destino)
+    (P.map (\t -> buscarColor mapa t) origen)
+    jump
+ ) : (aplicarColores mapa os)
+aplicarColores mapa ((Mov ensamblador destino origen ):os) = 
+    if colorDestino == colorOrigen
+    then aplicarColores mapa os
+    else (
+        Mov 
+        ensamblador
+        colorDestino
+        colorOrigen
+     ):(aplicarColores mapa os)
+ where colorDestino = buscarColor mapa destino
+       colorOrigen = buscarColor mapa origen
+aplicarColores mapa (l:os) = l : aplicarColores mapa os
+
+buscarColor :: Map Temp Temp -> Temp -> Temp
+buscarColor mapa t = 
+    case M.lookup t mapa  of
+        Just t -> t
+        Nothing -> error $ "Color no encontrado: " ++ unpack t
+
+elegirColor :: Nodo -> Map Temp Temp -> Grafo Nodo -> Maybe Temp
+elegirColor nodo mapa grafo = 
+    let vecinos = S.union (G.succ grafo nodo) (G.pred grafo nodo)
+        coloresVecinos = setMaybes $  S.map (\n -> colorear n mapa) vecinos
+        coloresAplicables = S.fromList registrosGenerales
+        coloresDisponibles = S.difference coloresAplicables coloresVecinos
+    in if (coloresDisponibles == S.empty)
+        then Nothing
+        else Just $ P.head $ S.toList $ coloresDisponibles
+
+select :: Map Temp Temp ->  [(Nodo, Grafo Nodo)] -> Either Nodo (Map Temp Temp)
+select mapa nodos = 
+    case nodos of 
+        [] -> Right mapa
+        ((nodo,grafo):ss) -> 
+            case elegirColor nodo mapa grafo of
+                Nothing -> Left nodo
+                Just t -> case select mapa ss of -- ¿Que profundidad espero de esta recursion? ¿Cuanto optimiza haskell esto? No me gusta
+                    Left n -> Left n
+                    Right m -> Right $  insertarColor m nodo t
 
 
 
 retrieveTemp t fr = Oper {oassem="movl `d0, [ebp +" ++ show (nextTemp fr) ++ "]",osrc=[],odest=[t],ojump = Nothing }
 saveTemp t fr = Oper {oassem="movl [ebp +" ++ show (nextTemp fr) ++ "],`s0",osrc=[t],odest=[],ojump = Nothing }
 
-spillTemp :: (Allocator a) => [Assem] -> Frame -> Temp -> a ([Assem],Frame)
+--Es monadico eunque no quiera, necesito TLGenerator
+spillTemp :: (TLGenerator a, Monad a) => [Assem] -> Frame -> Temp -> a ([Assem],Frame)
 spillTemp [] fr t = return ([],fr{actualReg = actualReg fr +1})
 spillTemp (op@(Oper _ dest src  _):ops) fr t = do
     let define = elem t dest
     let usa = elem t src
-    te <- newTemp
     (ops',nuevoFrame) <- spillTemp ops fr t
     if(usa || define)
-        then let previa = if usa then [retrieveTemp te fr] else []
-                 siguiente = if define then [saveTemp te fr] else []
-             in return (previa ++ [op] ++ siguiente ++ ops', nuevoFrame)
-        else return (op:ops',nuevoFrame)
+    then do
+        te <- newTemp
+        let previa = if usa then [retrieveTemp te fr] else []
+        let siguiente = if define then [saveTemp te fr] else []
+        return (previa ++ [op] ++ siguiente ++ ops', nuevoFrame)
+    else return (op:ops',nuevoFrame)
 spillTemp (op@(Mov _ dest src  ):ops) fr t = do
     let define =  t ==  dest
     let usa = t == src
-    te <- newTemp
     (ops',nuevoFrame) <- spillTemp ops fr t
-    if(usa || define)
-        then let previa = if usa then [retrieveTemp te fr] else []
-                 siguiente = if define then [saveTemp te fr] else []
-             in return (previa ++ [op] ++ siguiente ++ ops', nuevoFrame)
-        else return (op:ops',nuevoFrame)
+    if(usa || define) 
+    then do
+        te <- newTemp 
+        let previa = if usa then [retrieveTemp te fr] else []
+        let siguiente = if define then [saveTemp te fr] else []
+        return (previa ++ [op] ++ siguiente ++ ops', nuevoFrame)
+    else return (op:ops',nuevoFrame)
 spillTemp (op:ops) fr t = do
     (ops',nuevoFrame) <- spillTemp ops fr t
     return (op:ops',nuevoFrame)
 
 
+filtrarPrecoloreados :: (Allocator a) => [(Nodo, Nodo)] -> a [(Nodo, Nodo)]
+filtrarPrecoloreados [] = return []
+filtrarPrecoloreados ((n1,n2):ns) = do
+    pre1 <- precolored n1
+    pre2 <- precolored n2
+    if(not pre1 || not pre2) --Se puede hacer coalesce siempre que ALGUNO no esté precoloreado. Ambos no pueden estarlo.
+    then do 
+        ns' <- filtrarPrecoloreados ns
+        return $ (n1,n2):ns'
+    else 
+        filtrarPrecoloreados ns
+
 --Auxs: 
 --Toma el grafo de interferencia de liveness y lo convierte en uno de registros,
 liftGrafo :: Grafo Temp -> Grafo Nodo
-liftGrafo (Grafo vertices aristas) = G.Grafo (S.map (\a -> fromList [a]) vertices) (S.map (\(a,b)-> (fromList [a], fromList [b])) aristas)
+liftGrafo (Grafo vertices aristas) = G.Grafo (S.map (\a -> S.singleton a) vertices) (S.map (\(a,b)-> (S.singleton a, S.singleton b)) aristas)
 
 reemplazar :: (Eq a) => a -> a -> a -> a
 reemplazar x y z = if z == x then y else z
+
+reemplazarL :: (Eq a) => [a] -> a -> a -> a
+reemplazarL xs y z = if (L.elem z xs) then y else z
 
 findMoves :: [Assem] -> Set (Nodo, Nodo)
 findMoves [] = S.empty
 findMoves ((Mov assem dest src):as) = S.insert (S.singleton dest,S.singleton src)  (findMoves as)
 findMoves (a:as) = findMoves as
 
-coloresBase :: Set (Temp, Temp)
-coloresBase = S.fromList $ P.zip todosLosRegistros todosLosRegistros
+coloresBase :: Map Temp Temp
+coloresBase = M.fromAscList $ P.zip todosLosRegistros todosLosRegistros
+
+colorear :: Nodo -> Map Temp Temp -> Maybe Temp
+colorear n m = primerValor $ S.toList $ S.map (\t -> M.lookup t m) n
+ where
+    primerValor [] = Nothing
+    primerValor (Nothing:vs) = primerValor vs
+    primerValor ((Just v):vs) = Just v
+
+setMaybes :: (Ord a) => Set (Maybe a) -> Set a
+setMaybes s = S.fromList $ MB.catMaybes $ S.toList s
+
+insertarColor :: Map Temp Temp -> Nodo -> Temp -> Map Temp Temp
+insertarColor mapa nodo color = P.foldl (\m (k,v) -> M.insert k v m) mapa $ P.zip (S.toList nodo) (repeat color)
+
+--No me gusta el warning
+mkState :: Integer -> AllocState
+mkState unique = AS {
+    stack = []
+    ,interf = Grafo (S.empty) (S.empty)
+    ,moves =  S.empty
+    ,simplify = []
+    ,coalesce = []
+    ,freeze = []
+    ,spill = []
+    ,unique = unique
+}
+
+allocate :: [Assem] -> Frame -> Integer -> ([Assem], Frame)
+allocate assembly frame unique = fst $ runState (allocMain assembly frame) (mkState unique)

@@ -26,7 +26,7 @@ import qualified TigerEscap as E
 import System.IO.Unsafe
 import Prelude as P
 import Tools
-
+import TigerAllocation
 
 main :: IO ()
 main = 
@@ -43,8 +43,8 @@ main =
     testDir bad_loc (testBad bad_loc tester) >>
     putStrLn "\n======= Test FIN ======="
 
-tester :: String -> Either [Errores] [Grafo Temp]
-tester s = (\ !a -> a ) (tigerHastaLiveness s)
+tester :: String -> Either [Errores] [([Assem], Frame)]
+tester s = (\ !a -> a ) (tigerHastaAllocation s)
 
 type TigerStage = Either [Errores]
 
@@ -55,21 +55,26 @@ instance Monad TigerStage where
     (>>=) (Left err) f = Left err
 -}
 
+tigerHastaAllocation :: String -> TigerStage [([Assem], Frame)]
+tigerHastaAllocation programa = do
+    (frames,seed) <- tigerHastaAssem programa
+    return $ P.map (\(assems,frame) -> allocate assems frame seed) frames
+
 tigerHastaLiveness :: String -> TigerStage [Grafo Temp]
 tigerHastaLiveness programa = do
-    frames <- tigerHastaAssem programa
+    (frames,seed) <- tigerHastaAssem programa
     return $  P.map (\(instrucciones, frame) -> liveness instrucciones) frames
 
 
 
-tigerHastaAssem :: String -> TigerStage [([Assem], Frame)]
+tigerHastaAssem :: String -> TigerStage ([([Assem], Frame)],Integer)
 tigerHastaAssem programa = do
     expresionSinEscapar <- parserStage programa
     expresionEscapada <- escapStage expresionSinEscapar
     (fragmentos,useed) <- translateStage expresionEscapada
     let (_,fragsSeparados) = sepFrag fragmentos
     let (assems,seed) = aplicarCodegen (fragsSeparados, useed)
-    return assems
+    return (assems,seed)
   where aplanar (x:xs) = x ++ aplanar xs
         aplicarCodegen (frags, seed) =
             P.foldr 
@@ -77,7 +82,7 @@ tigerHastaAssem programa = do
                     let 
                         (codigoGenerado,nuevoSeed) = codegen stmts unique
                     in
-                        ((procEntryExit2 frame codigoGenerado ,frame):programas, nuevoSeed)
+                        ( (codigoGenerado ,frame):programas, nuevoSeed)
                 )
                 ([],seed)
                 frags
@@ -97,7 +102,7 @@ escapStage :: TigerAbs.Exp -> Either [Errores] TigerAbs.Exp
 escapStage exp = either (\err -> Left [err]) (\exp -> Right exp)  (E.calcularEEsc exp)
 
 translateStage :: TigerAbs.Exp -> Either [Errores] ([Frag],Integer)
-translateStage exp = either (\err -> Left err) (\(frags, estado) -> Right (frags, unique estado)) (runTranslate exp)
+translateStage exp = either (\err -> Left err) (\(frags, estado) -> Right (frags, TigerTranslate.unique estado)) (runTranslate exp)
 
 
 --Sandbox tools:
@@ -125,12 +130,18 @@ quickTest :: String -> String -> IO ()
 quickTest dir file = test dir (badRes . show) (const $ bluenice) tester file
 
 dirtyTestAssem :: String -> String -> TigerStage [([Assem], Frame)]
-dirtyTestAssem dir file = tigerHastaAssem programa
+dirtyTestAssem dir file = do
+    (ret,unique) <- tigerHastaAssem programa
+    return ret
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
 --dirtyTestLiveness :: String -> String -> TigerStage [[LivenessInfo ()]]
 --dirtyTestLiveness dir file = tigerHastaLiveness programa
    --where programa = unsafePerformIO (readFile (dir ++ '/' : file))
+
+dirtyTestAllocation :: String -> String -> TigerStage [([Assem], Frame)]
+dirtyTestAllocation dir file = tigerHastaAllocation programa
+  where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
 imprimirFrags :: String -> String -> IO ()
 imprimirFrags dir file = do
@@ -139,11 +150,20 @@ imprimirFrags dir file = do
     nadas <- mapM putStrLn strings
     return ()
 
+
+
 imprimirAssembler :: String -> String -> IO ()
 imprimirAssembler dir file = do
     let bloques = right $ dirtyTestAssem dir file
     nada <- mapM (\(ins, fr) -> mostrarBloque ins fr) bloques
     return ()
+
+imprimirAllocation :: String -> String -> IO ()
+imprimirAllocation dir file = do
+    let bloques = right $ dirtyTestAllocation dir file
+    nada <- mapM (\(ins, fr) -> mostrarBloque ins fr) bloques
+    return ()
+
 
 mostrarBloque :: [Assem] -> Frame -> IO ()
 mostrarBloque inss frame = putStrLn $ printInstrs naiveColorer inss
