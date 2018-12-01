@@ -23,7 +23,7 @@ munchArgs [] = return ()
 munchArgs (es) = do
     t <- munchExp $ P.last es
     emit Oper {
-        oassem = "push `s0"
+        oassem = "00 - push `s0"
        ,osrc = [t]
        ,odest = [sp]
        ,ojump = Nothing
@@ -34,14 +34,14 @@ munchExp :: (Emisor w) =>  Exp -> w Temp
 munchExp (Call (Name n) par) = do
     munchArgs par
     emit Oper {
-        oassem = "call " ++ unpack n
+        oassem = "01 - call " ++ unpack n
        ,osrc = []
        ,odest = eax:calldefs 
        ,ojump = Nothing -- Considero un call DISTINTO a un jump, ya que para liveness debería ser así.
     }
     --al volver, lo primero es normalizar los argumentos. Ya call-ret eliminó el return value.
     emit Oper {
-        oassem = "addl `d0, "  ++ (show (P.length par * wSz))
+        oassem = "02 - addl `d0, "  ++ (show (P.length par * wSz))
        ,osrc = []
        ,odest = [sp]
        ,ojump = Nothing
@@ -52,7 +52,7 @@ munchExp (Mem (Binop Plus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl `d0, [`s0 + " ++ show i ++ "]"
+        massem = "03 - movl `d0, [`s0 + " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -61,7 +61,7 @@ munchExp (Mem (Binop Plus (Const i) e1)) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl `d0, [`s0 + " ++ show i ++ "]"
+        massem = "04 - movl `d0, [`s0 + " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -70,7 +70,7 @@ munchExp (Mem (Binop Minus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl `d0, [`s0 - " ++ show i ++ "]"
+        massem = "05 - movl `d0, [`s0 - " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -79,7 +79,7 @@ munchExp (Mem (Binop Minus (Const i) e1)) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl `d0, [`s0  - " ++ show i ++ "]"
+        massem = "06 - movl `d0, [`s0  - " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -89,7 +89,7 @@ munchExp (Mem (Name l)) = do
     let label = unpack l
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [" ++ label ++ "]"
+        oassem = "07 - movl `d0, [" ++ label ++ "]"
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -101,28 +101,28 @@ munchExp (Binop oper e1 e2) = do
     case oper of
         Plus -> do
             emit Oper {
-                oassem = "addl `s1,`s0"
+                oassem = "08 - addl `s1,`s0"
                ,osrc = [t1,t2]
                ,odest = [t2]
                ,ojump = Nothing
             }
-            return t1
+            return t2
         Minus ->  do
             emit Oper {
-                oassem = "subl `s1,`s0"
+                oassem = "09 - subl `s1,`s0"
                ,osrc = [t1,t2]
                ,odest = [t2]
                ,ojump = Nothing
             }
-            return t1
+            return t2
         Mul -> do 
             emit Mov {
-                massem = "movl `d0, `ds"
+                massem = "10 - movl `d0, `ds"
                ,msrc = t1
                ,mdest = eax
             }
             emit Oper {
-                oassem = "mul `s0"
+                oassem = "11 - mul `s0"
                ,osrc = [t2]
                ,odest = [eax,edx]
                ,ojump = Nothing
@@ -130,12 +130,12 @@ munchExp (Binop oper e1 e2) = do
             return eax
         Div -> do 
             emit Mov {
-                massem = "movl `d0,`s0"
+                massem = "12 - movl `d0,`s0"
                ,msrc = t1
                ,mdest = eax
             }
             emit Oper {
-                oassem = "div `s0"
+                oassem = "13 - div `s0"
                ,osrc = [t2]
                ,odest = [eax,edx]
                ,ojump = Nothing
@@ -143,25 +143,25 @@ munchExp (Binop oper e1 e2) = do
             return eax
         And -> do
             emit Oper {
-                oassem = "and `s1,`s0"
+                oassem = "14 - and `s1,`s0"
                ,osrc = [t1,t2]
                ,odest = [t2]
                ,ojump = Nothing
             }
-            return t1
+            return t2
         Or -> do
             emit Oper {
-                oassem = "or `s1,`s0"
+                oassem = "15 - or `s1,`s0"
                ,osrc = [t1,t2]
                ,odest = [t2]
                ,ojump = Nothing
             }
-            return t1
+            return t2
 -- ¿Se va a dar este caso alguna vez?. Pareciera imposible por donde se lo mire... está en el libro.
 munchExp (Mem (Const i)) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [" ++ show i ++ "]"
+        oassem = "16 - movl `d0, [" ++ show i ++ "]"
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -171,7 +171,7 @@ munchExp (Mem e) = do
     t <- munchExp e
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [`s0]"
+        oassem = "17 - movl `d0, [`s0]"
        ,odest = [dest]
        ,osrc = [t]
        ,ojump = Nothing
@@ -185,7 +185,7 @@ munchExp (Eseq s e) = do
 munchExp (Const n) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, " ++  show n 
+        oassem = "18 - movl `d0, " ++  show n 
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -194,7 +194,7 @@ munchExp (Const n) = do
 munchExp (Name l) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [" ++ unpack l ++ "]"
+        oassem = "19 - movl `d0, [" ++ unpack l ++ "]"
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -207,17 +207,18 @@ munchStm :: (Emisor e) =>  Stm -> e ()
 munchStm (Move (Mem e1) e2) = do
     t1 <- munchExp e1
     t2 <- munchExp e2
-    emit Mov {
-        massem = "movl [`d0], `s0"
-        ,msrc = t2
-        ,mdest = t1
+    emit Oper {
+        oassem = "20 - movl [`d0], `s0"
+        ,osrc = [t2]
+        ,odest = [t1]
+        ,ojump = Nothing
     }
 --Otro caso particular, un label el el lado izquierdo de un move.
 munchStm (Move (Name l1) e2) = do
     t2 <- munchExp e2
     let label = unpack l1
     emit Oper {
-        oassem = "movl [label], `s0"
+        oassem = "21 - movl [label], `s0"
         ,osrc = [t2]
         ,odest = []
         ,ojump = Nothing
@@ -227,14 +228,14 @@ munchStm (Move e1 e2) = do
     t2 <- munchExp e2
     t1 <- munchExp e1
     emit Mov {
-        massem = "movl `d0, `s0"
+        massem = "22 - movl `d0, `s0"
        ,msrc = t2
        ,mdest = t1
     }
 munchStm (Jump (Name l1) l2) = do
     let label = unpack l1
     emit Oper {
-        oassem = "jmp " ++ label
+        oassem = "23 - jmp " ++ label
         ,osrc = []
         ,odest = []
         ,ojump = Just [l1]
@@ -246,7 +247,7 @@ munchStm (CJump op e1 e2 tl fl) = do
     let falseDest = unpack fl
     --Emito 3 instrucciones. Comparo primero
     emit Oper {
-        oassem = "cmp `s0, `s1" --Revisar si el canonizado no simplifica esto
+        oassem = "24 - cmp `s0, `s1" --Revisar si el canonizado no simplifica esto
         ,osrc = [t1,t2]
         ,odest = []
         ,ojump = Nothing
@@ -262,19 +263,19 @@ munchStm (CJump op e1 e2 tl fl) = do
     --En código canonizado... esto podría ser saltar a la siguiente instrucción- 
     --Por ahora lo dejo
     emit Oper {
-        oassem = "jmp " ++ falseDest
+        oassem = "25 - jmp " ++ falseDest
         ,osrc = []
         ,odest = []
         ,ojump = Just [fl]
     }
 --Instrucciones de salto condicional de x86 según el operador.
     where jumpInstruction op = case op of
-                                TigerTree.EQ -> "je"
-                                TigerTree.NE -> "jne"
-                                TigerTree.LT -> "jl"
-                                TigerTree.GT -> "jg"
-                                TigerTree.LE -> "jle"
-                                TigerTree.GE -> "jge"
+                                TigerTree.EQ -> "26 - je"
+                                TigerTree.NE -> "26 - jne"
+                                TigerTree.LT -> "26 - jl"
+                                TigerTree.GT -> "26 - jg"
+                                TigerTree.LE -> "26 - jle"
+                                TigerTree.GE -> "26 - jge"
 --Casos simples
 munchStm (Label l) = do
     let ls = unpack l

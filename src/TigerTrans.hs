@@ -266,7 +266,7 @@ instance (MemM w) => IrGen w where
         InReg r -> return $ Ex $ Temp r
         InFrame o -> do
             nivelActual <- getActualLevel
-            return $ Ex $ Mem (Binop Plus (Const o ) (arbolStaticLink nivelActual level))
+            return $ Ex $ Mem (Binop Plus (arbolStaticLink nivelActual level) (Const o))
             where --Supongo que el static link se ubica siempre a nivel de FP. Por el momento.
                 arbolStaticLink nivelActual level = 
                     if nivelActual <= level

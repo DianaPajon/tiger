@@ -543,7 +543,7 @@ transExp(WhileExp co body p) = do
 transExp(ForExp nv mb lo hi bo p) = 
   do
     --Genero la varEntry que necesito.
-    acceso <- allocLocal False
+    acceso <- allocLocal (mb == Escapa)
     level <-getActualLevel
     insertValV nv (TInt RO, acceso, level) ( do
       (variable, tVariable) <- transExp (VarExp ( SimpleVar nv) (Simple 0 0))
