@@ -299,9 +299,9 @@ aplicarColores mapa (l:os) = l : aplicarColores mapa os
 
 buscarColor :: Map Temp Temp -> Temp -> Temp
 buscarColor mapa t = 
-    case M.lookup t mapa  of
+    case M.lookup t ( M.fromList $ M.toAscList mapa)  of --sin esa chanchada, no encuentra lo que esta fuera de orden.
         Just t -> t
-        Nothing -> error $ "Color no encontrado: " ++ unpack t
+        Nothing -> error $ "Color no encontrado: " ++ unpack t ++ show mapa
 
 elegirColor :: Nodo -> Map Temp Temp -> Grafo Nodo -> Maybe Temp
 elegirColor nodo mapa grafo = 
@@ -320,15 +320,28 @@ select mapa nodos =
         ((nodo,grafo):ss) -> 
             case elegirColor nodo mapa grafo of
                 Nothing -> Left nodo
-                Just t -> case select mapa ss of -- ¿Que profundidad espero de esta recursion? ¿Cuanto optimiza haskell esto? No me gusta
+                Just t -> case select (insertarColor mapa nodo t) ss of -- ¿Que profundidad espero de esta recursion? ¿Cuanto optimiza haskell esto? No me gusta
                     Left n -> Left n
-                    Right m -> Right $  insertarColor m nodo t
+                    Right m -> Right m
 
 
 
 retrieveTemp t fr = Oper {oassem="movl `d0, [ebp +" ++ show (nextTemp fr) ++ "]",osrc=[],odest=[t],ojump = Nothing }
+
 saveTemp t fr = Oper {oassem="movl [ebp +" ++ show (nextTemp fr) ++ "],`s0",osrc=[t],odest=[],ojump = Nothing }
 
+cambiarTemp (Oper assembly dest src jump) tempViejo tempNuevo =
+    Oper
+    assembly
+    (P.map (\x -> reemplazar tempViejo tempNuevo x) dest)
+    (P.map (\x -> reemplazar tempViejo tempNuevo x) src)
+    jump
+cambiarTemp (Mov assembly dest src) tempViejo tempNuevo =
+    Mov
+    assembly
+    (reemplazar tempViejo tempNuevo dest)
+    (reemplazar tempViejo tempNuevo src)
+cambiarTemp i _ _ = i
 --Es monadico eunque no quiera, necesito TLGenerator
 spillTemp :: (TLGenerator a, Monad a) => [Assem] -> Frame -> Temp -> a ([Assem],Frame)
 spillTemp [] fr t = return ([],fr{actualReg = actualReg fr +1})
@@ -341,7 +354,7 @@ spillTemp (op@(Oper _ dest src  _):ops) fr t = do
         te <- newTemp
         let previa = if usa then [retrieveTemp te fr] else []
         let siguiente = if define then [saveTemp te fr] else []
-        return (previa ++ [op] ++ siguiente ++ ops', nuevoFrame)
+        return (previa ++ [cambiarTemp op t te] ++ siguiente ++ ops', nuevoFrame)
     else return (op:ops',nuevoFrame)
 spillTemp (op@(Mov _ dest src  ):ops) fr t = do
     let define =  t ==  dest
@@ -352,7 +365,7 @@ spillTemp (op@(Mov _ dest src  ):ops) fr t = do
         te <- newTemp 
         let previa = if usa then [retrieveTemp te fr] else []
         let siguiente = if define then [saveTemp te fr] else []
-        return (previa ++ [op] ++ siguiente ++ ops', nuevoFrame)
+        return (previa ++ [cambiarTemp op t te] ++ siguiente ++ ops', nuevoFrame)
     else return (op:ops',nuevoFrame)
 spillTemp (op:ops) fr t = do
     (ops',nuevoFrame) <- spillTemp ops fr t

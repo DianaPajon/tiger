@@ -1,8 +1,9 @@
-21 de Noviembre: Hecho liveness. Tiene que salir facil, es cuestion de escribir bien las estructuras.
-22 de Noviembre: Leer allocation
-3 de Diciembre: Hecho allocation. Comenzar armado (linkeado, etc). ¿ESTO SE PASA AL ENSAMBLADOR Y SE LINKEA, VERDAD?
+Implementacion inicial de allocation lista, queda detectar el bug de queens.tig, pero no estoy segura que sea por allocation.
+2 de Diciembre: Descanso.
+3 de Diciembre: Comenzar armado.
+5 de diciembre: Primeros ejecutables listos.
 8 de Diciembre: Armado y TESTEADO., hablar para entregar
-15 de Diciembre: Compilador TERMINADO. Completito.
+15 de Diciembre: Compilador TERMINADO y ENTREGADO. Completito.
 
 Recordar:
 -Estamos traduciendo EXPRESIONES de la forma (1 < 3) como Cx. Para esto tuvimos que modificar el seq
@@ -15,8 +16,6 @@ Pendientes:
 -munchString, para crear los label de los strings.
 
 Testear:
--Que el static link funcione, se implementa a bajo nivel, el compilador casi ni lo ve... 
- pero lo supone en el codigo intermedio. FP apunta a static link.
 -Campos de records: Que se definan y se usen independientes del orden. Que se puedan acceder bien.
 
 ----------------------

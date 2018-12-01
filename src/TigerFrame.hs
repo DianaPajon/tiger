@@ -136,13 +136,11 @@ externalCall :: String -> [Exp] -> Exp
 externalCall s = Call (Name $ pack s)
 
 allocArg :: (Monad w, TLGenerator w) => Frame -> Bool -> w (Frame, Access)
-allocArg fr True =
+allocArg fr _ =
     let actual = actualArg fr
         acc = InFrame $ wSz*actual + argsGap in
     return (fr{actualArg = actual +1}, acc)
-allocArg fr False = do
-    s <- newTemp
-    return (fr, InReg s)
+
 
 allocLocal :: (Monad w, TLGenerator w) => Frame -> Bool -> w (Frame, Access)
 allocLocal fr True =

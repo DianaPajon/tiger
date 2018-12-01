@@ -51,10 +51,11 @@ munchExp (Call (Name n) par) = do
 munchExp (Mem (Binop Plus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
-    emit Mov {
-        massem = "03 - movl `d0, [`s0 + " ++ show i ++ "]"
-       ,msrc = src
-       ,mdest = dest
+    emit Oper {
+        oassem = "03 - movl `d0, [`s0 + " ++ show i ++ "]"
+       ,osrc = [src]
+       ,odest = [dest]
+       ,ojump = Nothing
     }
     return dest
 munchExp (Mem (Binop Plus (Const i) e1)) = do
@@ -194,7 +195,7 @@ munchExp (Const n) = do
 munchExp (Name l) = do
     dest <- newTemp
     emit Oper {
-        oassem = "19 - movl `d0, [" ++ unpack l ++ "]"
+        oassem = "19 - movl `d0, "  ++ unpack l 
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
