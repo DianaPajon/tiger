@@ -1,0 +1,15 @@
+/* Test para revisar que el frame quede bien definido. */
+/* define a recursive function */
+let
+  var a := 0
+
+  var b := 0
+  
+  function fact (n : int) : int =
+        if  n = a /* Tiene que estar en el frame, negativo a y positivo n */
+        then 1
+        else a * fact (a - 1)
+        
+in  
+    fact(2)
+end

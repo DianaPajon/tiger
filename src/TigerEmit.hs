@@ -208,9 +208,9 @@ munchStm (Move (Mem e1) e2) = do
     t1 <- munchExp e1
     t2 <- munchExp e2
     emit Oper {
-        oassem = "20 - movl [`d0], `s0"
-        ,osrc = [t2]
-        ,odest = [t1]
+        oassem = "20 - movl [`s0], `s1"
+        ,osrc = [t1,t2]
+        ,odest = []
         ,ojump = Nothing
     }
 --Otro caso particular, un label el el lado izquierdo de un move.
