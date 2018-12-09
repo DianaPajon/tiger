@@ -1,4 +1,4 @@
-module TigerLiveness (liveness)  where
+module TigerLiveness  (liveness, fullFlow, FlowInfo, FlowNode, FlowGraph,  nodo, liveIn, liveOut, dato,ord) where
 
 import TigerTemp
 import TigerSymbol
@@ -76,7 +76,7 @@ agregarAristasJumps grafo anteriores (n:ns) =
   case (jumps n) of
     [] -> agregarAristasJumps grafo (anteriores ++ [n]) ns
     ls -> agregarAristasJumps (P.foldr (\a grafo -> agregarArista grafo a) grafo saltos) (anteriores ++ [n]) ns
-            where saltos = P.zip (repeat n) (getNodosEtiquetados ls ns)
+            where saltos = P.zip (repeat n) (getNodosEtiquetados ls (anteriores ++ ns))
 
 grafoFlow :: [Assem] -> FlowGraph Assem
 grafoFlow lista = 
@@ -107,10 +107,10 @@ iteracionLiveness (grafo,infos) = (grafo,) $
        getNodo n (m:ms) = if ( n == nodo m) then m else getNodo n ms
 
 --Algoritmo de punto fijo propiamente dicho.
-buscarPuntoFijo :: FlowGraph Assem -> [FlowInfo Assem] -> [FlowInfo Assem] 
+buscarPuntoFijo :: FlowGraph Assem -> [FlowInfo Assem] -> (FlowGraph Assem, [FlowInfo Assem] )
 buscarPuntoFijo grafo info = 
   if (info == info'  && (aristas grafo /= S.empty))
-    then info
+    then (grafo, info)
     else buscarPuntoFijo grafo info'
  where (grafo', info') = iteracionLiveness (grafo, info)
 
@@ -119,9 +119,15 @@ flow :: [Assem] -> [FlowInfo ()]
 flow assems =
   let 
     nodos = nodosBase assems
-    puntoFijo = buscarPuntoFijo (grafoFlow  assems) (startLiveness nodos)
+    puntoFijo = snd $ buscarPuntoFijo (grafoFlow  assems) (startLiveness nodos)
   in P.map (\li -> li{nodo = (nodo li){dato = ()}}) puntoFijo
 
+fullFlow :: [Assem] -> (FlowGraph Assem, [FlowInfo Assem])
+fullFlow assems = 
+  let 
+    nodos = nodosBase assems
+    puntoFijo = buscarPuntoFijo (grafoFlow  assems) (startLiveness nodos)
+  in puntoFijo
 --Calculo de Interferencia:
 interf :: [FlowInfo ()] -> Grafo Temp
 interf [] = grafoVacio
