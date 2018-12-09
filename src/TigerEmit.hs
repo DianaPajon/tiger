@@ -36,23 +36,23 @@ munchExp (Call (Name n) par) = do
     emit Oper {
         oassem = "call " ++ unpack n
        ,osrc = []
-       ,odest = eax:calldefs 
+       ,odest = calldefs 
        ,ojump = Nothing -- Considero un call DISTINTO a un jump, ya que para liveness debería ser así.
     }
     --al volver, lo primero es normalizar los argumentos. Ya call-ret eliminó el return value.
     emit Oper {
-        oassem = "addl `d0, "  ++ (show (P.length par * wSz))
+        oassem = "add `d0, "  ++ (show (P.length par * wSz))
        ,osrc = []
        ,odest = [sp]
        ,ojump = Nothing
     }
-    return eax --Return value
+    return rv --Return value
 --Addressing con offset, para ahorrar una operacion
 munchExp (Mem (Binop Plus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [`s0 + " ++ show i ++ "]"
+        oassem = "mov `d0, [`s0 " ++ signedShow i ++ "]"
        ,osrc = [src]
        ,odest = [dest]
        ,ojump = Nothing
@@ -62,7 +62,7 @@ munchExp (Mem (Binop Plus (Const i) e1)) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl `d0, [`s0 + " ++ show i ++ "]"
+        massem = "mov `d0, [`s0 + " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -71,7 +71,7 @@ munchExp (Mem (Binop Minus e1 (Const i))) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl `d0, [`s0 - " ++ show i ++ "]"
+        massem = "mov `d0, [`s0 - " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -80,7 +80,7 @@ munchExp (Mem (Binop Minus (Const i) e1)) = do
     src <- munchExp e1
     dest <- newTemp
     emit Mov {
-        massem = "movl `d0, [`s0  - " ++ show i ++ "]"
+        massem = "mov `d0, [`s0  - " ++ show i ++ "]"
        ,msrc = src
        ,mdest = dest
     }
@@ -90,7 +90,7 @@ munchExp (Mem (Name l)) = do
     let label = unpack l
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [" ++ label ++ "]"
+        oassem = "mov `d0, " ++ label 
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -101,68 +101,109 @@ munchExp (Binop oper e1 e2) = do
     t2 <- munchExp e2
     case oper of
         Plus -> do
+            dest <- newTemp
+            emit Mov {
+                massem = "mov `d0,`s0",
+                msrc  = t2,
+                mdest = dest
+            }
             emit Oper {
-                oassem = "addl `s1,`s0"
-               ,osrc = [t1,t2]
-               ,odest = [t2]
+                oassem = "add `s1,`s0"
+               ,osrc = [t1,dest]
+               ,odest = [dest]
                ,ojump = Nothing
             }
-            return t2
+            return dest
         Minus ->  do
-            emit Oper {
-                oassem = "subl `s1,`s0"
-               ,osrc = [t1,t2]
-               ,odest = [t2]
-               ,ojump = Nothing
-            }
-            return t2
-        Mul -> do 
+            dest <- newTemp
             emit Mov {
-                massem = "movl `d0, `ds"
-               ,msrc = t1
-               ,mdest = eax
+                massem = "mov `d0,`s0",
+                msrc  = t1,
+                mdest = dest
             }
             emit Oper {
-                oassem = "mul `s0"
-               ,osrc = [t2]
-               ,odest = [eax,edx]
+                oassem = "sub `s1,`s0"
+               ,osrc = [t2,dest]
+               ,odest = [dest]
                ,ojump = Nothing
             }
-            return eax
-        Div -> do 
-            emit Mov {
-                massem = "movl `d0,`s0"
-               ,msrc = t1
-               ,mdest = eax
-            }
-            emit Oper {
-                oassem = "div `s0"
-               ,osrc = [t2]
-               ,odest = [eax,edx]
-               ,ojump = Nothing
-            }
-            return eax
+            return dest
+        Mul -> case unpack t2 of 
+                    "eax" -> do
+                                emit Oper {
+                                    oassem = "mul `s0"
+                                ,osrc = [t1]
+                                ,odest = [eax,edx]
+                                ,ojump = Nothing
+                                }
+                                return eax
+                    _ -> do
+                            emit Mov {
+                                massem = "mov `d0, `s0"
+                            ,msrc = t1
+                            ,mdest = eax
+                            }
+                            emit Oper {
+                                oassem = "mul `s0"
+                            ,osrc = [t2]
+                            ,odest = [eax,edx]
+                            ,ojump = Nothing
+                            }
+                            return eax
+        Div -> case unpack t2 of
+                    "eax" -> do emit Oper {
+                                    oassem = "div `s0"
+                                    ,osrc = [t1]
+                                    ,odest = [eax,edx]
+                                    ,ojump = Nothing
+                                }
+                                return eax
+                    _ -> do
+                            emit Mov {
+                                massem = "mov `d0,`s0"
+                            ,msrc = t1
+                            ,mdest = eax
+                            }
+                            emit Oper {
+                                oassem = "div `s0"
+                            ,osrc = [t2]
+                            ,odest = [eax,edx]
+                            ,ojump = Nothing
+                            }
+                            return eax
         And -> do
+            dest <- newTemp
+            emit Mov {
+                massem = "mov `d0,`s0",
+                msrc  = t2,
+                mdest = dest
+            }
             emit Oper {
                 oassem = "and `s1,`s0"
-               ,osrc = [t1,t2]
-               ,odest = [t2]
+               ,osrc = [t1,dest]
+               ,odest = [dest]
                ,ojump = Nothing
             }
-            return t2
+            return dest
         Or -> do
+            dest <- newTemp
+            emit Mov {
+                massem = "mov `d0,`s0",
+                msrc  = t2,
+                mdest = dest
+            }
             emit Oper {
                 oassem = "or `s1,`s0"
-               ,osrc = [t1,t2]
-               ,odest = [t2]
+               ,osrc = [t1,dest]
+               ,odest = [dest]
                ,ojump = Nothing
             }
-            return t2
+            return dest
 -- ¿Se va a dar este caso alguna vez?. Pareciera imposible por donde se lo mire... está en el libro.
 munchExp (Mem (Const i)) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [" ++ show i ++ "]"
+        oassem = "mov `d0, [" ++ show i ++ "]"
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -172,7 +213,7 @@ munchExp (Mem e) = do
     t <- munchExp e
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, [`s0]"
+        oassem = "mov `d0, [`s0]"
        ,odest = [dest]
        ,osrc = [t]
        ,ojump = Nothing
@@ -186,7 +227,7 @@ munchExp (Eseq s e) = do
 munchExp (Const n) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, " ++  show n 
+        oassem = "mov `d0, " ++  show n 
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -195,7 +236,7 @@ munchExp (Const n) = do
 munchExp (Name l) = do
     dest <- newTemp
     emit Oper {
-        oassem = "movl `d0, "  ++ unpack l 
+        oassem = "mov `d0, offset "  ++ unpack l 
        ,odest = [dest]
        ,osrc = []
        ,ojump = Nothing
@@ -209,7 +250,7 @@ munchStm (Move (Mem e1) e2) = do
     t1 <- munchExp e1
     t2 <- munchExp e2
     emit Oper {
-        oassem = "movl [`s0], `s1"
+        oassem = "mov [`s0], `s1"
         ,osrc = [t1,t2]
         ,odest = []
         ,ojump = Nothing
@@ -219,7 +260,7 @@ munchStm (Move (Name l1) e2) = do
     t2 <- munchExp e2
     let label = unpack l1
     emit Oper {
-        oassem = "movl [label], `s0"
+        oassem = "mov [label], `s0"
         ,osrc = [t2]
         ,odest = []
         ,ojump = Nothing
@@ -229,7 +270,7 @@ munchStm (Move e1 e2) = do
     t2 <- munchExp e2
     t1 <- munchExp e1
     emit Mov {
-        massem = "movl `d0, `s0"
+        massem = "mov `d0, `s0"
        ,msrc = t2
        ,mdest = t1
     }
@@ -340,7 +381,17 @@ munchProc s  = do
     lss <- basicBlocks lin
     stmts <- traceSchedule lss
     munchStmts stmts
+    emit Oper {
+        oassem= "",
+        odest=[],
+        osrc=calleesaves++[sp,fp],
+        ojump=Nothing
+    }
 
 codegen :: Stm ->  Integer -> ([Assem], Integer)
 codegen cuerpo seed = (assembly estado,  unique estado)
  where estado = snd $ runState (munchProc cuerpo ) (EstadoEmisor{unique = seed, assembly = [], tank = M.empty})
+
+
+signedShow :: (Integral a, Show a ) => a -> String
+signedShow x = if( x >= 0) then "+" ++ show x else show x

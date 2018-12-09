@@ -1,14 +1,15 @@
-module TigerShow where
+module TigerShow (makeProgram,printCode) where
 
 import TigerEmit
 import TigerTemp
 import Text.Regex
+import TigerFrame (Frag(AString))
 import Data.Text as T
 import Prelude as P
 type Coloreador = Temp -> Temp
 
 naiveColorer :: Coloreador
-naiveColorer = id
+naiveColorer reg = T.pack ("%" ++ T.unpack reg)
 
 
 applyDests :: Coloreador -> [Temp] -> String  -> String
@@ -19,6 +20,7 @@ applySrcs colores registros instruccion = applyTemps "`s" colores registros inst
 
 applyTemps :: String -> Coloreador -> [Temp] -> String  -> Integer -> String
 applyTemps prefijo colores [] instruccion n = instruccion
+applyTemps prefijo colores asdf "" n = ""
 applyTemps prefijo colores (t:ts) instruccion n = 
     case splitRegex (mkRegex (prefijo ++ show n)) instruccion of
         [before, after] -> applyTemps prefijo colores ts (before ++ T.unpack (colores t) ++ after) (n+1)
@@ -36,3 +38,14 @@ printInstrs colores  instrucciones =
         (\codigo instruccion-> codigo ++  printInstr colores  instruccion ++ "\n")
         ""
         instrucciones
+
+printCode :: [Assem] ->  String
+printCode instrucciones = printInstrs naiveColorer instrucciones
+
+printStrFrag :: Frag -> String
+printStrFrag (AString label (strings)) = unpack label ++ ":" ++ P.foldl (\declaracion linea -> declaracion ++ "\n" ++ unpack linea) "" strings ++ "\n"
+
+makeProgram :: [[Assem]] -> [Frag] -> String
+makeProgram instrucciones strings = 
+    ".intel_syntax\n.data\n" ++ P.foldl (\strings string -> strings ++ "\n" ++ printStrFrag string) "" strings ++
+    "\n.text\n" ++ P.foldl (\programa funcion -> programa ++ "\n" ++ printCode funcion) "" instrucciones

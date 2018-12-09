@@ -33,8 +33,10 @@ long *_allocRecord(long ctos, ...)
 	va_list va;
     p = a = malloc(ctos*sizeof(long));
 	va_start(va, ctos);
-    for (i = 0; i < ctos; i ++)
-		*p++ = va_arg(va, long);
+    for (i = 0; i < ctos; i ++){
+		long val = va_arg(va,long);
+		*p++ = val; // debugging step
+	}
     return a;
 }
 void _checkNil(long* r)
@@ -133,12 +135,7 @@ string *getstr()
     else
 		return consts[i];
 }
-#if defined(__DEBUG__)
-long _tigermain(long l)
-{
-	return 0;
-}
-#endif
+
 int main()
 {
 	extern long _tigermain(long);
@@ -149,5 +146,5 @@ int main()
 		consts[i]->length = 1;
 		consts[i]->chars[0] = i;
     }
-    return _tigermain(0 /* static link!? */ );
+    return _tigermain(0);
 }

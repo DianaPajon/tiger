@@ -266,12 +266,7 @@ instance (MemM w) => IrGen w where
         InReg r -> return $ Ex $ Temp r
         InFrame o -> do
             nivelActual <- getActualLevel
-            return $ Ex $ Mem (Binop Plus (arbolStaticLink nivelActual level) (Const o))
-            where --Supongo que el static link se ubica siempre a nivel de FP. Por el momento.
-                arbolStaticLink nivelActual level = 
-                    if nivelActual <= level
-                    then (Temp fp) 
-                    else Mem (arbolStaticLink (nivelActual - 1) level)
+            return $ Ex $ F.exp acc (nivelActual - level)
     varDec acc = do { i <- getActualLevel; simpleVar acc i}
     unitExp = return $ Ex (Const 0)
     nilExp = return $ Ex (Const 0)
@@ -279,7 +274,7 @@ instance (MemM w) => IrGen w where
     fieldVar be i = do --Ponele que si. No veo porque no sería así. Puede ser calculado en tiempo de compilación.
         baseVar <- unEx be --y no se va a a llamar con un indice que no exista.
         let offset = i * wSz
-        return $ Ex $  Mem (Binop Plus baseVar (Const offset)) 
+        return $ Ex $  Mem (Binop Plus baseVar (Const offset)) --No hace falta el checkindex en este caso.
     -- subscriptVar :: BExp -> BExp -> w BExp
     subscriptVar var ind = do
         evar <- unEx var
@@ -290,34 +285,36 @@ instance (MemM w) => IrGen w where
             Eseq
                 (seq    [Move (Temp tvar) evar
                         ,Move (Temp tind) eind
-                        ,ExpS $ externalCall "_checkIndex" [Temp tvar, Temp tind]])
+                        ,ExpS $ externalCall "_checkIndexArray" [Temp tvar, Temp tind]])
                 (Mem $ Binop Plus (Temp tvar) (Binop Mul (Temp tind) (Const wSz)))
     -- recordExp :: [(BExp,Int)]  -> w BExp
     recordExp flds = do --Supone que el record está normalizado (TODOS los fields en orden). Siempre tienen todas las componentes.
         let size = Const $ List.length flds
         let init = Const 0
+        let fields = sortBy (\(_,i1) (_,i2) -> compare i1 i2) flds
+        inits <- mapM (\(b,_) -> unEx b) fields
         t <- newTemp
-        movs <- mkMoves flds t
         return $ Ex $ Eseq (seq $
-                [ExpS $ externalCall "_allocArray" [size,init]
+                [ExpS $ externalCall "_allocRecord" ([size] ++ inits)
                 , Move (Temp t) (Temp rv)
-                ] ++ movs ) (Temp t)
-                where
-                    mkMoves [] base = return []
-                    mkMoves ((exp,i):ms) base = do 
-                        expre <- unEx exp
-                        masMoves <- mkMoves ms base
-                        return $ (Move (Mem (Binop Plus (Temp base) (Const (i * wSz)))) expre) : masMoves
+                ] ) (Temp t)
     -- callExp :: Label -> Externa -> Bool -> Level -> [BExp] -> w BExp
     callExp name external isproc lvl args = do
         let callMethod = case external of
                 Runtime -> externalCall (T.unpack name) --Podría obviarse, pero por limpieza lo dejo.
                 Propia -> Call (Name name)
-        -- Por ahora ignoro el nivel, y pongo el SL como FP.
+        nivelLlamante <- getActualLevel
+        let nivelLlamando = getNlvl lvl
+        let staticLink =if (nivelLlamando > nivelLlamante)
+            then Temp fp
+            else F.auxexp 1
         args' <- mapM unEx args
+        let argumentos = case external of 
+                Runtime -> args'
+                Propia -> staticLink:args'
         if isproc == IsProc
-        then return $ Nx $ ExpS $ callMethod args'
-        else return $ Ex $ Eseq (ExpS $ callMethod args') (Temp rv)
+        then return $ Nx $ ExpS $ callMethod argumentos
+        else return $ Ex $ Eseq (ExpS $ callMethod argumentos) (Temp rv)
         
     -- letExp :: [BExp] -> BExp -> w BExp
     letExp [] e = do -- Puede parecer al dope, pero no...
@@ -407,13 +404,13 @@ instance (MemM w) => IrGen w where
             Just done -> --Hay un prewhile y postwhile. Porque es un bucle también.
                 return $ Nx $ seq
                     [
-                        Move (Mem var) loExp,
+                        Move var loExp,
                         CJump LE var hiExp  bodyLabel  done,
                         Label bodyLabel,
                         body, 
                         CJump EQ var hiExp  done  increment, --por si maxint
                         Label increment,
-                        Move var (Binop Plus (Mem var) (Const 1)),
+                        Move var (Binop Plus var (Const 1)),
                         Jump (Name bodyLabel) bodyLabel,
                         Label done 
                     ]
@@ -507,6 +504,6 @@ instance (MemM w) => IrGen w where
         ini <- unEx init
         t <- newTemp
         return $ Ex $ Eseq (seq
-                [ExpS $ externalCall "_allocArray" [sz,ini]
+                [ExpS $ externalCall "_initArray" [sz,ini]
                 , Move (Temp t) (Temp rv)
                 ]) (Temp t)

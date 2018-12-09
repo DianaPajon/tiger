@@ -9,14 +9,13 @@ let
 
   var d := 4
 
-  var e := 5
+  var f := 5
 
-  var f := 6
-
-  var g := 7
-
-  var h := 8
+  var g := 6
 
 in  
-    a+b+c+d+e+f+g+h
+    a:=a+b+c+d; a = 10
+    f:=(a+b)*(c+d);
+    g:=(a+b)*f + c + d;
+    f:= f + g + c + d
 end

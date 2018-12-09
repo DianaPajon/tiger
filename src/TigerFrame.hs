@@ -8,32 +8,37 @@ import           TigerSymbol
 import           Prelude     hiding (exp)
 
 --Implementación modificada para dar los detalles de IA-32.
+{-
+Estructura del Frame
+arg n <-------------fp + 8 + wSz * nArg
+...
+arg 2 <-------------fp + 8 + wSz * nArg
+arg 1 <-------------fp + 8 + wSz * nArg
+static link arg <---fp + 8
+ret addr <----------fp + 4
+ebp caller <--------fp
+ebx <---------------fp - 4
+esi <---------------fp - 8
+edi <---------------fp - 12
+local 1 <-----------fp - 12 - wSz*nLocal
+local 2
+local 3
+...
+local n <-----------fp - 12 - wSz*(cant locales)
+temp 1 <------------fp - 12 - wSz*(cant locales)
+...
+temp n <------------fp - 12 wSz*(cant locales + cant temporales) = sp
+-}
 
--- | Frame pointer
-fp :: Temp
-fp = pack "ebp"
+auxexp :: Int -> Exp
+auxexp 0 = Temp fp
+auxexp n 
+ | n >= 0 = Mem(Binop Plus (auxexp (n-1)) (Const fpPrevLev))
+ | otherwise = error ("Se llama a auxExp con n negativo: " ++ show n)
 
--- | Stack pointer
-sp :: Temp
-sp = pack "esp"
-
-eax :: Temp
-eax = pack "eax"
-
-ebx :: Temp
-ebx = pack "ebx"
-
-ecx :: Temp
-ecx = pack "ecx"
-
-edx :: Temp
-edx = pack "edx"
-
-esi :: Temp
-esi = pack "esi"
-
-edi :: Temp
-edi = pack "edi"
+exp :: Access -> Int -> Exp
+exp (InFrame k) e = Mem(Binop Plus (auxexp e) (Const k))
+exp (InReg l) _   = Temp l
 
 
 
@@ -53,23 +58,15 @@ fpPrev :: Int
 fpPrev = 0
 -- | Offset
 fpPrevLev :: Int
-fpPrevLev = 0
+fpPrevLev = 8
 
-argsGap = 8
-localsGap = -4
+argsGap = 12
+localsGap = -16
 
 argsInicial = 0
 regInicial = 0
 localsInicial = 0
 
-registrosGenerales = [eax,ebx,ecx,edx,esi,edi]
-k = Prelude.length registrosGenerales
-todosLosRegistros = [eax,ebx,ecx,edx,esi,edi,fp,sp]
-calldefs = [rv]
-specialregs = [rv, fp, sp]
-calleesaves = [rv,ecx,edx]
-callersaves = [ebx,fp,sp,esi,edi]
-argregs = [] --Todos los parametros a stack.
 data Access = InFrame Int | InReg Temp | InTemp Int
     deriving Show
 data Frag = Proc Stm Frame | AString Label [Symbol]
@@ -94,12 +91,20 @@ seqs (x:xs) = Seq x (seqs xs)
 
 procEntryExit2 :: Frame -> [Assem] -> [Assem]
 procEntryExit2 frame stmts = [
+        Oper {oassem = ".global " ++ (unpack $ name frame), osrc = [], odest = [], ojump=Nothing},
+        Oper {oassem = ".type " ++ (unpack $ name frame) ++ ", @function", osrc = [], odest = [], ojump=Nothing},
         Lab {lassem = (unpack $ name frame)++ ":", label=name frame },
         Oper {oassem = "push `s0", osrc=[fp], odest=[sp],ojump=Nothing },
-        Mov {massem = "movl `d0, `s0", mdest=fp, msrc=sp},
-        Oper {oassem = "addl `d0, " ++ show (frameSize frame), osrc = [], odest = [sp], ojump = Nothing}
+        Mov {massem = "mov `d0, `s0", mdest=fp, msrc=sp},
+        Oper {oassem = "push `s0", osrc=[ebx], odest=[sp],ojump=Nothing },
+        Oper {oassem = "push `s0", osrc=[esi], odest=[sp],ojump=Nothing },
+        Oper {oassem = "push `s0", osrc=[edi], odest=[sp],ojump=Nothing },
+        Oper {oassem = "sub `d0, " ++ show (frameSize frame), osrc = [], odest = [sp], ojump = Nothing}
     ] ++ stmts ++ [
-        Oper {oassem = "subl `d0, " ++ show (frameSize frame), osrc = [], odest = [sp], ojump = Nothing},
+        Oper {oassem = "add `d0, " ++ show (frameSize frame), osrc = [], odest = [sp], ojump = Nothing},
+        Oper {oassem = "pop `d0", osrc = [], odest = [edi], ojump = Nothing},
+        Oper {oassem = "pop `d0", osrc = [], odest = [esi], ojump = Nothing},
+        Oper {oassem = "pop `d0", osrc = [], odest = [ebx], ojump = Nothing},
         Oper {oassem = "pop `d0", osrc = [], odest = [fp], ojump = Nothing},
         Oper {oassem = "ret", osrc = [eax], odest = [], ojump = Nothing}
     ]
@@ -156,30 +161,39 @@ nextTemp fr = localsGap + (-wSz)*(actualLocal fr + actualReg fr)
 
 frameSize :: Frame -> Int
 frameSize fr = wSz * (actualLocal fr + actualReg fr)
-{-
-Estructura del Frame
-arg n <------------ fp +4 + wSz * nArg
-...
-arg 2 <------------ fp +4 + wSz * nArg
-arg 1 <------------ fp +4 + wSz * nArg
-ret addr <--------- fp +4
-static link <---------------- fp
-local 1 <------------ fp - wSz*nLocal
-local 2
-local 3
-...
-local n <------------ fp - wSz*(cant locales)
-temp 1 <------------ fp - wSz*(cant locales)
-...
-temp n <------------- SP= fp - wSz*(cant locales + cant temporales)
--}
+
+-- | Frame pointer
+fp :: Temp
+fp = pack "ebp"
+
+-- | Stack pointer
+sp :: Temp
+sp = pack "esp"
+
+eax :: Temp
+eax = pack "eax"
+
+ebx :: Temp
+ebx = pack "ebx"
+
+ecx :: Temp
+ecx = pack "ecx"
+
+edx :: Temp
+edx = pack "edx"
+
+esi :: Temp
+esi = pack "esi"
+
+edi :: Temp
+edi = pack "edi"
 
 
---TODO: Reescribir TigerTrans para que use este código.
-auxexp :: Int -> Exp
-auxexp 0 = Temp fp
-auxexp n = Mem(Binop Plus (auxexp (n-1)) (Const fpPrevLev))
-
-exp :: Access -> Int -> Exp
-exp (InFrame k) e = Mem(Binop Plus (auxexp e) (Const k))
-exp (InReg l) _   = Temp l
+registrosGenerales = [eax,ebx,ecx,edx,esi,edi]
+k = Prelude.length registrosGenerales
+todosLosRegistros = [eax,ebx,ecx,edx,esi,edi,fp,sp]
+calldefs = [rv,ecx,edx]
+specialregs = [rv, fp, sp]
+calleesaves = [rv,ecx,edx]
+callersaves = [ebx,fp,sp,esi,edi]
+argregs = [] --Todos los parametros a stack.

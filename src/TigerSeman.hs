@@ -169,8 +169,9 @@ buscarM s ((s',t,i):xs) | s == s' = Just (s',t,i)
 -- de la variable a la que se está __accediendo__.
 -- ** transVar :: (MemM w, Manticore w) => Var -> w (BExp, Tipo)
 transVar :: (MemM w, Manticore w) => Var -> w ( BExp , Tipo)
-transVar (SimpleVar s)      = do (t,a,i) <- getTipoValV s -- Nota [1]
-                                 var <- simpleVar a i
+transVar (SimpleVar s)      = do (t,a,l) <- getTipoValV s -- Nota [1]
+                                 var <- simpleVar a l
+                                 
                                  return (var, t)
 transVar (FieldVar v s)     = do (var, tBase) <- transVar v
                                  case tBase of 
@@ -370,7 +371,8 @@ transFun fs (nombre, args, mt, body, p) =
     do 
       let nivelFun = nivelFuncion fs nombre
       pushLevel nivelFun
-      args <- mapM mkArgEntry args
+      nLevel <- getActualLevel
+      args <- mapM (\arg -> mkArgEntry arg nLevel) args 
       let expresionConArgs = P.foldr (\(s,argentry) e  -> insertValV s argentry e) (transExp body) args
       (cuerpo , tipo) <- P.foldr (\(s,fentry) e -> insertFunV s fentry e) expresionConArgs fs
       let isproc = if mt == Nothing then IsProc else IsFun
@@ -389,12 +391,11 @@ transFun fs (nombre, args, mt, body, p) =
  where 
   nivelFuncion ((nombre, (level,_,_,_,_)):funs) s = if s == nombre then level else nivelFuncion funs s
 
-mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> w (Symbol, ValEntry)
-mkArgEntry (s,e,t) = do
+mkArgEntry :: (MemM w, Manticore w) => (Symbol,Escapa,Ty) -> Int ->  w (Symbol, ValEntry)
+mkArgEntry (s,e,t) level = do
   acceso <- allocArg (e == Escapa)
   tipo <- fromTy t
-  unique <- ugen
-  return (s,(tipo, acceso, fromIntegral unique))
+  return (s,(tipo, acceso, level))
 
 mkFunEntry :: (MemM w, Manticore w) => FunDec -> w (Symbol, FunEntry)
 mkFunEntry (nombre,args,mtipo,cuerpo,pos) = do 

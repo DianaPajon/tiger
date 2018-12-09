@@ -11,9 +11,9 @@ let
             function useD() =
                 if 1 then d := n else b := n
         in 
-            if  a = n /* Tiene que estar en el frame, negativo a y positivo n */
+            if  n = 0 /* Tiene que estar en el frame, negativo a y positivo n */
             then 1
-            else a * fact (a - 1)
+            else n * fact (n - 1)
         end
 in  
     for i :=0 to 100 do 

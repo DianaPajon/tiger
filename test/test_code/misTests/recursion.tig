@@ -1,0 +1,10 @@
+let
+    var a := 0
+
+    function fact (n : int) =
+        if  n = a /* Tiene que estar en el frame, negativo a y positivo n */
+        then (print("Hola");print("\n"))
+        else (print("Todavia no");print("\n");fact(n-1))
+in
+    fact(5)
+end

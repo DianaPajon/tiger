@@ -49,11 +49,31 @@ tester s = (\ !a -> a ) (tigerHastaAllocation s)
 type TigerStage = Either [Errores]
 
 {-
-instance Monad TigerStage where
-    return = Right
-    (>>=) (Right a) f = f a
-    (>>=) (Left err) f = Left err
+version "final" de tiger, dado un programa, imprime assembly
 -}
+
+tiger :: String -> TigerStage String
+tiger programa = do
+    expresionSinEscapar <- parserStage programa
+    expresionEscapada <- escapStage expresionSinEscapar
+    (fragmentos,useed) <- translateStage expresionEscapada
+    let (labels,intermedio) = sepFrag fragmentos
+    let (assembly,seed) = aplicarCodegen (intermedio, useed)
+    let assemblyAlocado = P.map (\(assems,frame) -> allocate assems frame seed) assembly --El seed ya no importa
+    let procedimientos = P.map (\(assems,frame) -> procEntryExit2 frame assems) assemblyAlocado --El frame ya no importa
+    return $ makeProgram procedimientos labels
+  where aplanar (x:xs) = x ++ aplanar xs
+        aplicarCodegen (frags, seed) =
+            P.foldr 
+                (\(stmts, frame) (programas,unique) -> 
+                    let 
+                        (codigoGenerado,nuevoSeed) = codegen stmts unique
+                    in
+                        ( (codigoGenerado ,frame):programas, nuevoSeed)
+                )
+                ([],seed)
+                frags
+
 
 tigerHastaAllocation :: String -> TigerStage [([Assem], Frame)]
 tigerHastaAllocation programa = do
@@ -143,14 +163,16 @@ dirtyTestAllocation :: String -> String -> TigerStage [([Assem], Frame)]
 dirtyTestAllocation dir file = tigerHastaAllocation programa
   where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
+dirtyTiger :: String -> String -> TigerStage String
+dirtyTiger dir file = tiger programa
+  where programa = unsafePerformIO (readFile (dir ++ '/' : file))
+
 imprimirFrags :: String -> String -> IO ()
 imprimirFrags dir file = do
     let frags = fst $ right $ tigerHastaTranslate $ unsafePerformIO (readFile (dir ++ '/' : file))
     let strings = P.map (renderFrag) frags
     nadas <- mapM putStrLn strings
     return ()
-
-
 
 imprimirAssembler :: String -> String -> IO ()
 imprimirAssembler dir file = do
@@ -164,9 +186,13 @@ imprimirAllocation dir file = do
     nada <- mapM (\(ins, fr) -> mostrarBloque ins fr) bloques
     return ()
 
+imprimirAssembly :: String -> String -> IO ()
+imprimirAssembly dir file = do
+    let codigo = right $ dirtyTiger dir file
+    putStrLn codigo
 
 mostrarBloque :: [Assem] -> Frame -> IO ()
-mostrarBloque inss frame = putStrLn $ printInstrs naiveColorer inss
+mostrarBloque inss frame = putStrLn $ printCode inss
 
 showAssem :: [Assem] -> String
 showAssem (i@(Oper assembly dest src _):is) = 

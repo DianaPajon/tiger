@@ -326,9 +326,9 @@ select mapa nodos =
 
 
 
-retrieveTemp t fr = Oper {oassem="movl `d0, [ebp +" ++ show (nextTemp fr) ++ "]",osrc=[],odest=[t],ojump = Nothing }
+retrieveTemp t fr = Oper {oassem="mov `d0, [%ebp " ++ show (nextTemp fr) ++ "]",osrc=[],odest=[t],ojump = Nothing }
 
-saveTemp t fr = Oper {oassem="movl [ebp +" ++ show (nextTemp fr) ++ "],`s0",osrc=[t],odest=[],ojump = Nothing }
+saveTemp t fr = Oper {oassem="mov [%ebp " ++ show (nextTemp fr) ++ "],`s0",osrc=[t],odest=[],ojump = Nothing }
 
 cambiarTemp (Oper assembly dest src jump) tempViejo tempNuevo =
     Oper

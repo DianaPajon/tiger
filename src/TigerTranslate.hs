@@ -80,7 +80,7 @@ initConf =
                 salidas = []
             
             },
-            level = newLevel outermost (pack "main") [], --Por ahora sin argumentos, true por el static link a outer.
+            level = newLevel outermost (pack "_tigermain") [], --Por ahora sin argumentos, true por el static link a outer.
             -- actualLevel se refiere al scope que estamos viendo en la variable actual,
             -- lo podemos usar para navegar los lvls.
             actualLevel = 0,
@@ -187,7 +187,8 @@ getTipoT' s e = (M.lookup s (tEnv $ scope e))
 --TODO: Este código está mal, creo que upLvl debería mover el actualLevel nomás, y el resto
 instance MemM TigerState where 
     getActualLevel = do estado <- get
-                        return $ actualLevel  estado
+                        let actualLevel = getNlvl $ level  estado
+                        return actualLevel
     pushSalida s = do
         estado <- get
         let ss = salidas $ scope estado

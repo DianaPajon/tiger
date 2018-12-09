@@ -1,19 +1,13 @@
-Implementacion inicial de allocation lista, queda detectar el bug de queens.tig, pero no estoy segura que sea por allocation.
-2 de Diciembre: Descanso.
-3 de Diciembre: Comenzar armado.
-5 de diciembre: Primeros ejecutables listos.
-8 de Diciembre: Armado y TESTEADO., hablar para entregar
-15 de Diciembre: Compilador TERMINADO y ENTREGADO. Completito.
+Sale coding sin parar los proximos días. HAY QUE TERMINARLO
+10 de Diciembre: Armado y TESTEADO., hablar para entregar
+15 de Diciembre: Compilador TERMINADO y ENTREGADO.
 
 Recordar:
 -Estamos traduciendo EXPRESIONES de la forma (1 < 3) como Cx. Para esto tuvimos que modificar el seq
  para que reciba el caso de Cx. Esto puede traer problemas mas adelante, recordarlo por las dudas.
--Por alguna razon, los accesos no tienen offsets de wSz, se incrementan de a 1. Recordar. ·    
 -Puede haber un record con dos campos del mismo nombre, ¿Que pasaría en tal caso?.
--Meterse con el canonizador de código intermedio, entender que hace y si me sirve.
+-Meterse con el canonizador de código intermedio, puede estar rompiendo código.
 
-Pendientes:
--munchString, para crear los label de los strings.
 
 Testear:
 -Campos de records: Que se definan y se usen independientes del orden. Que se puedan acceder bien.
@@ -68,7 +62,7 @@ getParent []     = P.error "No fuimos del outermost level"
 getParent (_:xs) = xs
 
 outermost :: Level
-outermost = [ MkLI (newFrame (pack "_undermain") []) (-1) ]
+outermost = [MkLI (newFrame (pack "_undermain") []) (-1) ]
 ---------
 Mecanismo para la selección de instrucciones.
 
