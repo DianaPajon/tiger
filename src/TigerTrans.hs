@@ -473,17 +473,48 @@ instance (MemM w) => IrGen w where
         termIzq <- unEx strl
         termDer <- unEx strr
         case op of
-            Abs.EqOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strEQ" termIzq termDer t f)
-            Abs.NeqOp -> return $ Cx $ (\(t,f) ->  mkStrFun "_strEQ" termIzq termDer f t)
-            Abs.LtOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strLT" termIzq termDer t f)
-            Abs.LeOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strLE" termIzq termDer t f)
-            Abs.GtOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strLT" termDer termIzq t f)
-            Abs.GeOp -> return $ Cx $ (\(t,f) -> mkStrFun "_strLE" termDer termIzq t f)
-        where mkStrFun fun termIzq termDer labelTrue labelFalse = seq 
-                    [
-                        ExpS $ externalCall fun [termIzq,termDer],
-                        CJump EQ (Temp rv) (Const 1) labelTrue labelFalse
-                    ]
+            Abs.EqOp -> return $ Cx $ (\(t,f) ->
+                seq
+                 [
+                    ExpS $ externalCall "_stringCompare" [termIzq, termDer],
+                    CJump EQ (Temp rv) (Const 0) t f
+                 ]
+             )
+            Abs.NeqOp -> return $ Cx $ (\(t,f) ->
+                seq
+                 [
+                    ExpS $ externalCall "_stringCompare" [termIzq, termDer],
+                    CJump EQ (Temp rv) (Const 0) f t
+                 ]
+             )
+            Abs.LtOp -> return $ Cx $ (\(t,f) ->
+                seq
+                 [
+                    ExpS $ externalCall "_stringCompare" [termIzq, termDer],
+                    CJump LT (Temp rv) (Const 0) t f
+                 ]
+             )
+            Abs.LeOp -> return $ Cx $ (\(t,f) -> 
+                seq
+                 [
+                    ExpS $ externalCall "_stringCompare" [termIzq, termDer],
+                    CJump LE (Temp rv) (Const 0) t f
+                 ]
+             )
+            Abs.GtOp -> return $ Cx $ (\(t,f) -> 
+                seq
+                 [
+                    ExpS $ externalCall "_stringCompare" [termIzq, termDer],
+                    CJump GT (Temp rv) (Const 0) t f
+                 ]
+             )
+            Abs.GeOp -> return $ Cx $ (\(t,f) -> 
+                seq
+                 [
+                    ExpS $ externalCall "_stringCompare" [termIzq, termDer],
+                    CJump GE (Temp rv) (Const 0) t f
+                 ]
+             )
     binOpIntRelExp le op re = do
         termIzq <- unEx le
         termDer <- unEx re
