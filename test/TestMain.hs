@@ -22,6 +22,7 @@ import TigerLiveness
 import TigerTemp
 import Grafo
 import Data.Text as T
+import Data.Set as S
 import qualified TigerEscap as E
 import System.IO.Unsafe
 import Prelude as P
@@ -84,8 +85,6 @@ tigerHastaLiveness :: String -> TigerStage [Grafo Temp]
 tigerHastaLiveness programa = do
     (frames,seed) <- tigerHastaAssem programa
     return $  P.map (\(instrucciones, frame) -> liveness instrucciones) frames
-
-
 
 tigerHastaAssem :: String -> TigerStage ([([Assem], Frame)],Integer)
 tigerHastaAssem programa = do
@@ -155,6 +154,35 @@ dirtyTestAssem dir file = do
     return ret
    where programa = unsafePerformIO (readFile (dir ++ '/' : file))
 
+
+tigerHastaFlow :: String -> TigerStage [(FlowGraph Assem, [FlowInfo Assem])]
+tigerHastaFlow programa = do
+    (frames,seed) <- tigerHastaAssem programa
+    return $ P.map (\(instrucciones, frame) -> fullFlow instrucciones) frames
+   
+printInfo :: FlowGraph Assem -> FlowInfo Assem -> String
+printInfo grafo info = 
+    let
+        nodoGrafo = nodo info
+        sucesores = Grafo.succ grafo nodoGrafo
+        instruccion = dato nodoGrafo
+        assembly = case instruccion of
+            (Oper assemb _ _ _) -> assemb
+            (Mov assemb _ _ ) -> assemb
+            (Lab assem _ ) -> assem
+        liveIns  = "LiveIn: " ++ P.foldl (\temps temp -> temps ++ ", " ++ unpack temp) "" (liveIn info)
+        liveOuts = "LiveOut: " ++ P.foldl (\temps temp -> temps ++ ", " ++ unpack temp) "" (liveOut info)
+        numero = show $ ord nodoGrafo
+        numerosSucesores = "Succ:" ++ (P.foldl (\succs suc -> succs ++ ", " ++ show (ord suc)) "" $ toList sucesores)
+    in numero ++ ":" ++ assembly ++ "   ||   " ++ liveIns ++ " " ++ liveOuts ++ " " ++ numerosSucesores
+
+printInfos :: FlowGraph Assem -> [FlowInfo Assem] -> String
+printInfos grafo infos = P.foldl (\infos info -> infos ++ "\n" ++ printInfo grafo info) "" infos
+
+dirtyTestFlow :: String -> String -> TigerStage [(FlowGraph Assem, [FlowInfo Assem])]
+dirtyTestFlow dir file = tigerHastaFlow programa
+  where programa = unsafePerformIO (readFile (dir ++ '/' : file))
+
 --dirtyTestLiveness :: String -> String -> TigerStage [[LivenessInfo ()]]
 --dirtyTestLiveness dir file = tigerHastaLiveness programa
    --where programa = unsafePerformIO (readFile (dir ++ '/' : file))
@@ -190,6 +218,14 @@ imprimirAssembly :: String -> String -> IO ()
 imprimirAssembly dir file = do
     let codigo = right $ dirtyTiger dir file
     putStrLn codigo
+
+imprimirFlow :: String -> String -> IO ()
+imprimirFlow dir file = do
+    let flows = right $ dirtyTestFlow dir file
+    let flowDatas = P.map (\(grafo, infos) -> printInfos grafo infos) flows
+    nadas <- mapM putStrLn flowDatas
+    return ()
+
 
 mostrarBloque :: [Assem] -> Frame -> IO ()
 mostrarBloque inss frame = putStrLn $ printCode inss

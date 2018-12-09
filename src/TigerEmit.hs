@@ -275,12 +275,12 @@ munchStm (Move e1 e2) = do
        ,mdest = t1
     }
 munchStm (Jump (Name l1) l2) = do
-    let label = unpack l1
+    let label = unpack l2
     emit Oper {
         oassem = "jmp " ++ label
         ,osrc = []
         ,odest = []
-        ,ojump = Just [l1]
+        ,ojump = Just [l2]
     }
 munchStm (CJump op e1 e2 tl fl) = do
     t1 <- munchExp e1
