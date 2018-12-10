@@ -151,7 +151,14 @@ munchExp (Binop oper e1 e2) = do
                             }
                             return eax
         Div -> case unpack t2 of
+                    
                     "eax" -> do emit Oper {
+                                    oassem = "mov `d0,0"
+                                    ,osrc = []
+                                    ,odest = [edx]
+                                    ,ojump = Nothing
+                                }
+                                emit Oper {
                                     oassem = "div `s0"
                                     ,osrc = [t1]
                                     ,odest = [eax,edx]
@@ -159,6 +166,12 @@ munchExp (Binop oper e1 e2) = do
                                 }
                                 return eax
                     _ -> do
+                            emit Oper {
+                                oassem = "mov `d0,0"
+                                ,osrc = []
+                                ,odest = [edx]
+                                ,ojump = Nothing
+                            }
                             emit Mov {
                                 massem = "mov `d0,`s0"
                             ,msrc = t1

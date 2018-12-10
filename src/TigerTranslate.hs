@@ -66,7 +66,7 @@ initConf =
                 vEnv = M.fromList
                         [(pack "print", Func (outermost,pack "print",[TString], TUnit, Runtime)),
                         (pack "flush", Func (outermost,pack "flush",[],TUnit, Runtime)),
-                        (pack "getchar",Func (outermost,pack "getchar",[],TString,Runtime)),
+                        (pack "getchar",Func (outermost,pack "getstr",[],TString,Runtime)),
                         (pack "ord",Func (outermost,pack "ord",[TString],TInt RW,Runtime)),
                         (pack "chr",Func (outermost,pack "chr",[TInt RW],TString,Runtime)),
                         (pack "size",Func (outermost,pack "size",[TString],TInt RW,Runtime)),

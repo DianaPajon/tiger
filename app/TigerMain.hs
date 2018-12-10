@@ -128,7 +128,8 @@ main = do
     (opts', _) <- compilerOptions opts
     sourceCode <- readFile s
     case tiger sourceCode of
-      Left errores -> putStrLn $ show errores
+      Left errores -> do nada <- mapM (\err -> putStrLn $ show err)  errores
+                         return ()
       Right assembly -> putStrLn assembly
     --let ret = runTranslate ast
     --case ret of

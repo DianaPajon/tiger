@@ -129,7 +129,7 @@ long not(long i)
 }
 string *getstr()
 {
-    int i = getc(stdin);
+    int i = fgetc(stdin);
     if (i == EOF)
 		return &empty;
     else

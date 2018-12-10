@@ -314,7 +314,14 @@ instance (MemM w) => IrGen w where
                 Propia -> staticLink:args'
         if isproc == IsProc
         then return $ Nx $ ExpS $ callMethod argumentos
-        else return $ Ex $ Eseq (ExpS $ callMethod argumentos) (Temp rv)
+        else do
+                valor <- newTemp
+                return $ Ex $ Eseq (seq 
+                    [
+                        ExpS $ callMethod argumentos,
+                        Move (Temp valor) (Temp rv)
+                    ]
+                    ) (Temp valor)
         
     -- letExp :: [BExp] -> BExp -> w BExp
     letExp [] e = do -- Puede parecer al dope, pero no...

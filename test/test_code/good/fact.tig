@@ -6,7 +6,5 @@ let
       then 1
       else n * fact (n - 1)
 in
-  if fact (6) = 720 
-  then (print("Bien");print("\n"))
-  else (print("Mal");print("\n"))
+  fact (10)
 end

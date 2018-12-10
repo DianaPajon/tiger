@@ -403,11 +403,12 @@ mkFunEntry (nombre,args,mtipo,cuerpo,pos) = do
   let formals = (P.map (\(a,b,c) -> b == Escapa) args) 
   tipos <- mapM transTy (P.map (\(a,b,c) -> c) args)
   label <- newLabel
+  let funLabel = pack (unpack label ++  "_" ++ unpack nombre)
   tipo <- case mtipo of
     Nothing -> return TUnit
     Just s -> getTipoT s
-  let nivelFuncion = newLevel nivelPadre label formals
-  return (nombre,(nivelFuncion, label, tipos, tipo, Propia))
+  let nivelFuncion = newLevel nivelPadre funLabel formals
+  return (nombre,(nivelFuncion, funLabel, tipos, tipo, Propia))
  
 
 getTipoEntry :: (Unique, Label, [Tipo], Tipo, Externa) -> Tipo
