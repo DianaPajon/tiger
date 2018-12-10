@@ -404,7 +404,7 @@ coloresBase :: Map Temp Temp
 coloresBase = M.fromAscList $ P.zip todosLosRegistros todosLosRegistros
 
 colorear :: Nodo -> Map Temp Temp -> Maybe Temp
-colorear n m = primerValor $ S.toList $ S.map (\t -> M.lookup t m) n
+colorear n m = primerValor $ S.toList $ S.map (\t -> M.lookup t $ M.fromList $ M.toAscList m) n
  where
     primerValor [] = Nothing
     primerValor (Nothing:vs) = primerValor vs

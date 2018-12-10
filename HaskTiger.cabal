@@ -59,7 +59,7 @@ library
                        -- QuasiQuoting things
                        , syb
                        , template-haskell
-	               , regex-compat
+                       , regex-compat
   default-language:    Haskell2010
   default-extensions: FlexibleInstances
                     , TypeFamilies
@@ -82,7 +82,7 @@ executable HaskTiger
                        , cond
                        , transformers
                        , HaskTiger
-		       , regex-compat
+                       , regex-compat
   default-language:    Haskell2010
 
 test-suite HaskTiger-test
@@ -102,7 +102,7 @@ test-suite HaskTiger-test
                        , template-haskell
                        , ansi-terminal
                        , directory
-		       , regex-compat
+                       , regex-compat
   other-modules: TigerSeman 
                  TigerTrans                  
                  State

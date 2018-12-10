@@ -7,7 +7,7 @@ import Data.Text as T
 import           System.Console.GetOpt
 import qualified System.Environment    as Env
 import           System.Exit
-
+import           System.IO
 import           TigerAbs
 import           TigerEscap as E
 import           TigerParser
@@ -128,7 +128,7 @@ main = do
     (opts', _) <- compilerOptions opts
     sourceCode <- readFile s
     case tiger sourceCode of
-      Left errores -> do nada <- mapM (\err -> putStrLn $ show err)  errores
+      Left errores -> do nada <- mapM (\err -> hPutStrLn stderr $ show err)  errores
                          return ()
       Right assembly -> putStrLn assembly
     --let ret = runTranslate ast

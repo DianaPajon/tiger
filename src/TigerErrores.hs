@@ -20,7 +20,7 @@ data Errores =  NotFound Symbol
               | Error Symbol
 
 instance Show Errores where
-    show (NotFound e) = "No se encuentra la variable "++ show e
-    show (Interno e)  = "Error interno " ++ show e
-    show (Error s) = show s
+    show (NotFound e) = "No se encuentra la variable "++ unpack e
+    show (Interno e)  = "Error interno " ++ unpack e
+    show (Error s) = unpack s
             
