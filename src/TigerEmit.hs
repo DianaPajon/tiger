@@ -408,3 +408,16 @@ codegen cuerpo seed = (assembly estado,  unique estado)
 
 signedShow :: (Integral a, Show a ) => a -> String
 signedShow x = if( x >= 0) then "+" ++ show x else show x
+
+ele20 :: [Stm]
+ele20 = 
+  [
+    Label $ pack "L20",
+        Move (Temp $ pack "t2") (Const 0),
+        Move (Temp $ pack "t16") (Binop Mul (Temp $ pack "t2") (Const 10)),
+        Move (Temp $ pack "t15") (Call (Name $ pack "L0_ord") [Mem (Binop Plus (Temp $ pack "ebp") (Const 8)),Mem (Binop Plus (Temp $ pack "ebp") (Const 12))]),
+        Move (Temp $ pack "t18") (Binop Plus (Temp $ pack "t16") (Temp $ pack "t15")),
+        Move (Temp $ pack "t17") (Call (Name $ pack "L0_ord") [Mem (Binop Plus (Temp $ pack "ebp") (Const 8)),Const 0]),
+        Move (Temp $ pack "t2") (Binop Minus (Temp $ pack "t18") (Temp$ pack  "t17")),
+        Move (Temp $ pack "eax") (Temp $ pack "t2"),Jump (Name $ pack "L19") $  pack "L19",Label$ pack  "L19"
+   ]

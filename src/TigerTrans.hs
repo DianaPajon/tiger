@@ -315,13 +315,7 @@ instance (MemM w) => IrGen w where
         if isproc == IsProc
         then return $ Nx $ ExpS $ callMethod argumentos
         else do
-                valor <- newTemp
-                return $ Ex $ Eseq (seq 
-                    [
-                        ExpS $ callMethod argumentos,
-                        Move (Temp valor) (Temp rv)
-                    ]
-                    ) (Temp valor)
+                return $ Ex $  callMethod argumentos
         
     -- letExp :: [BExp] -> BExp -> w BExp
     letExp [] e = do -- Puede parecer al dope, pero no...

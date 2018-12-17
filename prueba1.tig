@@ -1,0 +1,20 @@
+let
+   function ord (n :int) : int = n + 1
+
+   function sum (a:int, b:int) : int = a + b
+
+   function minus (a:int, b:int) : int = a - b
+
+   function times (a:int, b:int) : int = a * b
+
+   function makeInt(n : int) : int=
+      let
+        var i := 0
+      in
+        (i := minus(sum(times(i , 10) , ord(n)) , ord(0));
+        i)
+      end
+in
+  if(makeInt(3) = 3) then print("si");
+  print("\n")
+end

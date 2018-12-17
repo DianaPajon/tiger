@@ -1,0 +1,14 @@
+let
+   function ord (n :int) : int = n + 1
+
+   function makeInt(n : int) : int=
+      let
+        var i := 0
+      in
+        (i := i * 10 + ord(n) - ord(0);
+        i)
+      end
+in
+  if(makeInt(3) = 3) then print("si");
+  print("\n")
+end

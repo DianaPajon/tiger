@@ -12,7 +12,7 @@ data Exp
     | Mem Exp
     | Call Exp [Exp]
     | Eseq Stm Exp
-    deriving Show
+    deriving (Eq,Show)
 
 data Stm
     = Move Exp Exp
@@ -21,14 +21,14 @@ data Stm
     | CJump Relop Exp Exp Temp.Label Temp.Label
     | Seq Stm Stm
     | Label Temp.Label
-    deriving Show
+    deriving (Eq,Show)
 
 data BOp = Plus | Minus | Mul | Div | And | Or | LShift | RShift
     | ARShift | XOr
-    deriving Show
+    deriving (Eq,Show)
 
 data Relop = EQ | NE | LT | GT | LE | GE | ULT | ULE | UGT | UGE
-    deriving Show
+    deriving (Eq,Show)
 
 notRel :: Relop -> Relop
 notRel EQ  = NE
