@@ -376,8 +376,8 @@ transFun fs (nombre, args, mt, body, p) =
       let expresionConArgs = P.foldr (\(s,argentry) e  -> insertValV s argentry e) (transExp body) args
       (cuerpo , tipo) <- P.foldr (\(s,fentry) e -> insertFunV s fentry e) expresionConArgs fs
       let isproc = if mt == Nothing then IsProc else IsFun
-      intermedio <- envFunctionDec nivelFun (functionDec cuerpo nivelFun isproc)
       levelConArgs <- topLevel
+      intermedio <- envFunctionDec nivelFun (functionDec cuerpo levelConArgs isproc)
       popLevel
       case mt of 
         Nothing -> do esProc <- tiposIguales TUnit tipo
